@@ -7,8 +7,8 @@ import (
 	"log"
 	"net/http"
 	"tp-db-forum/configs"
-	_userHandler "tp-db-forum/internal/app/user/delivery"
-	_userRepo "tp-db-forum/internal/app/user/repository"
+	_handler "tp-db-forum/internal/app/delivery"
+	_repo "tp-db-forum/internal/app/repository"
 )
 
 func main() {
@@ -39,8 +39,8 @@ func main() {
 		log.Fatalf(err.Error())
 	}
 
-	userRepo := _userRepo.NewPostgresUserRepository(pool)
-	_userHandler.NewUserHandler(router, userRepo)
+	repo := _repo.NewPostgresAppRepository(pool)
+	_handler.NewAppHandler(router, repo)
 
 	log.Fatal(http.ListenAndServe(":5000", router))
 }

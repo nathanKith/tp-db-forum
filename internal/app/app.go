@@ -1,7 +1,7 @@
-package user
+package app
 
 import (
-	"tp-db-forum/internal/app/user/models"
+	"tp-db-forum/internal/app/models"
 )
 
 type Repository interface {
