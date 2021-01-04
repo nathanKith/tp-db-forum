@@ -6,12 +6,9 @@ import (
 	"github.com/jackc/pgx"
 	"log"
 	"net/http"
+	"tp-db-forum/configs"
 	_userHandler "tp-db-forum/internal/app/user/delivery"
 	_userRepo "tp-db-forum/internal/app/user/repository"
-
-	"tp-db-forum/configs"
-
-	//userRepository "tp-db-forum/internal/app/user/repository"
 )
 
 func main() {
