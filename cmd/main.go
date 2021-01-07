@@ -9,7 +9,17 @@ import (
 	"tp-db-forum/configs"
 	_handler "tp-db-forum/internal/app/delivery"
 	_repo "tp-db-forum/internal/app/repository"
+	_useCase "tp-db-forum/internal/app/usecase"
 )
+
+func applicationJSONMiddleware(_ *mux.Router) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			next.ServeHTTP(w, r)
+		})
+	}
+}
 
 func main() {
 	router := mux.NewRouter()
@@ -40,7 +50,10 @@ func main() {
 	}
 
 	repo := _repo.NewPostgresAppRepository(pool)
-	_handler.NewAppHandler(router, repo)
+	useCase := _useCase.NewAppUseCase(repo)
+	_handler.NewAppHandler(router, useCase)
+
+	router.Use(applicationJSONMiddleware(router))
 
 	log.Fatal(http.ListenAndServe(":5000", router))
 }

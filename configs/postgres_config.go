@@ -3,7 +3,7 @@ package configs
 type postgresConfig struct {
 	User     string
 	Password string
-	DB   string
+	DB       string
 	Port     string
 }
 
