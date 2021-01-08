@@ -99,3 +99,46 @@ func (a appUseCase) CheckThreadBySlug(slug string) (models.Thread, error) {
 
 	return thread, err
 }
+
+func (a appUseCase) CheckThreadById(id int) (models.Thread, error) {
+	thread, err := a.appRepository.SelectThreadById(id)
+
+	return thread, err
+}
+
+func (a appUseCase) CreatePosts(posts []models.Post, thread models.Thread) ([]models.Post, error) {
+	for i, _ := range posts {
+		posts[i].Thread = thread.Id
+		posts[i].Forum = thread.Forum
+	}
+
+	result, err := a.appRepository.InsertPosts(posts)
+
+	return result, err
+}
+
+func (a appUseCase) EditThread(thread models.Thread) (models.Thread, error) {
+	newThread, err := a.appRepository.UpdateThread(thread)
+
+	return newThread, err
+}
+
+func (a appUseCase) AddVote(vote models.Vote) (models.Vote, error) {
+	newVote, err := a.appRepository.InsertVote(vote)
+
+	return newVote, err
+}
+
+func (a appUseCase) UpdateVote(vote models.Vote) (models.Vote, error) {
+	newVote, err := a.appRepository.UpdateVote(vote)
+
+	return newVote, err
+}
+
+func (a appUseCase) GetServiceStatus() (map[string]int, error) {
+	return a.appRepository.GetServiceStatus()
+}
+
+func (a appUseCase) ClearDatabase() error {
+	return a.appRepository.ClearDatabase()
+}

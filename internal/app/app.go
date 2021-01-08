@@ -15,6 +15,13 @@ type Repository interface {
 	SelectForumBySlug(slug string) (models.Forum, error)
 	InsertThread(thread models.Thread) (models.Thread, error)
 	SelectThreadBySlug(slug string) (models.Thread, error)
+	SelectThreadById(id int) (models.Thread, error)
+	InsertPosts(posts []models.Post) ([]models.Post, error)
+	UpdateThread(thread models.Thread) (models.Thread, error)
+	InsertVote(vote models.Vote) (models.Vote, error)
+	UpdateVote(vote models.Vote) (models.Vote, error)
+	GetServiceStatus() (map[string]int, error)
+	ClearDatabase() error
 }
 
 type UseCase interface {
@@ -27,5 +34,12 @@ type UseCase interface {
 	CreateForum(forum models.Forum) (models.Forum, error)
 	CheckForumBySlug(slug string) (models.Forum, error)
 	CreateForumThread(thread models.Thread) (models.Thread, error)
-	CheckThreadBySlug(slug string) (models.Thread, error) {
+	CheckThreadBySlug(slug string) (models.Thread, error)
+	CheckThreadById(id int) (models.Thread, error)
+	CreatePosts(posts []models.Post, thread models.Thread) ([]models.Post, error)
+	EditThread(thread models.Thread) (models.Thread, error)
+	AddVote(vote models.Vote) (models.Vote, error)
+	UpdateVote(vote models.Vote) (models.Vote, error)
+	GetServiceStatus() (map[string]int, error)
+	ClearDatabase() error
 }

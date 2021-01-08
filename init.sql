@@ -46,3 +46,14 @@ CREATE UNLOGGED TABLE post (
     FOREIGN KEY (thread) REFERENCES "thread" (id),
     FOREIGN KEY (parent) REFERENCES "post"   (id)
 );
+
+CREATE UNLOGGED TABLE votes
+(
+    nickname  citext,
+    voice     INT,
+    id_thread INT,
+
+    FOREIGN KEY (nickname) REFERENCES "users" (nickname),
+    FOREIGN KEY (id_thread) REFERENCES "thread" (id),
+    UNIQUE (nickname, id_thread)
+);
