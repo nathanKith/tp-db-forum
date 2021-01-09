@@ -6,6 +6,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/jackc/pgx"
 	"log"
+	"strings"
 	"time"
 	repo "tp-db-forum/internal/app"
 	"tp-db-forum/internal/app/models"
@@ -232,7 +233,6 @@ func (p *postgresAppRepository) InsertPosts(posts []models.Post) ([]models.Post,
 	return resultPosts, nil
 }
 
-
 func (p *postgresAppRepository) UpdateThread(thread models.Thread) (models.Thread, error) {
 	query := `UPDATE thread SET title=$1, message=$2 WHERE %s RETURNING *`
 
@@ -322,4 +322,369 @@ func (p *postgresAppRepository) ClearDatabase() error {
 	_, err := p.Conn.Exec(`TRUNCATE users, thread, forum, post, vote`)
 
 	return err
+}
+
+func (p *postgresAppRepository) SelectUsersByForum(slugForum string, parameters models.QueryParameters) ([]models.User, error) {
+	query := `SELECT users.nickname, users.fullname, users.about, users.email FROM 
+			  ((SELECT thread.author FROM thread WHERE thread.forum=$1) UNION 
+			  (SELECT post.author FROM post WHERE post.author=$1)) AS union_users 
+			  JOIN users ON union_users.author=users.nickname
+			  WHERE LOWER(author) < LOWER($3) ORDER BY LOWER(author) %s LIMIT NULLIF($2)`
+
+	if parameters.Desc {
+		query = fmt.Sprintf(query, "DESC")
+	} else {
+		query = fmt.Sprintf(query, "ASC")
+	}
+
+	if parameters.Since == "" {
+		query = strings.ReplaceAll(query, `WHERE LOWER(author) < LOWER($3)`, "")
+	}
+
+	rows, err := p.Conn.Query(query, slugForum, parameters.Limit, parameters.Since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []models.User
+	for rows.Next() {
+		var user models.User
+		err = rows.Scan(&user.Nickname, &user.FullName, &user.About, &user.Email)
+		if err != nil {
+			return nil, err
+		}
+
+		users = append(users, user)
+	}
+
+	return users, nil
+}
+
+func (p *postgresAppRepository) SelectThreadsByForum(slugForum string, parameters models.QueryParameters) ([]models.Thread, error) {
+	var rows *pgx.Rows
+	var err error
+	if parameters.Since != "" {
+		if parameters.Desc {
+			rows, err = p.Conn.Query(
+				`SELECT * FROM thread WHERE LOWER(forum)=LOWER($1) AND created <= $2 
+				ORDER BY created DESC LIMIT NULLIF($3, 0)`,
+				slugForum, parameters.Since, parameters.Limit)
+		} else {
+			rows, err = p.Conn.Query(
+				`SELECT * FROM thread WHERE LOWER(forum)=LOWER($1) AND created <= $2 
+				ORDER BY created ASC LIMIT NULLIF($3, 0)`,
+				slugForum, parameters.Since, parameters.Limit)
+		}
+	} else {
+		if parameters.Desc {
+			rows, err = p.Conn.Query(
+				`SELECT * FROM thread WHERE LOWER(forum)=LOWER($1)
+				ORDER BY created DESC LIMIT NULLIF($3, 0)`,
+				slugForum, parameters.Since, parameters.Limit)
+		} else {
+			rows, err = p.Conn.Query(
+				`SELECT * FROM thread WHERE LOWER(forum)=LOWER($1)
+				ORDER BY created ASC LIMIT NULLIF($3, 0)`,
+				slugForum, parameters.Since, parameters.Limit)
+		}
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var threads []models.Thread
+	for rows.Next() {
+		var thread models.Thread
+		var created time.Time
+
+		err := rows.Scan(
+			&thread.Id,
+			&thread.Author,
+			&created,
+			&thread.Forum,
+			&thread.Message,
+			&thread.Slug,
+			&thread.Title,
+			&thread.Votes,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		thread.Created = strfmt.DateTime(created.UTC()).String()
+
+		threads = append(threads, thread)
+	}
+
+	return threads, nil
+}
+
+func (p *postgresAppRepository) SelectPostById(id int) (models.Post, error) {
+	var post models.Post
+	var created time.Time
+
+	err := p.Conn.QueryRow(
+		`SELECT * FROM post WHERE id=$1 LIMIT 1;`,
+		id).Scan(
+		&post.Id,
+		&post.Author,
+		&created,
+		&post.Forum,
+		&post.Message,
+		&post.IsEdited,
+		&post.Parent,
+		&post.Thread,
+	)
+	if err != nil {
+		return models.Post{}, err
+	}
+
+	post.Created = strfmt.DateTime(created.UTC()).String()
+
+	return post, nil
+}
+
+func (p *postgresAppRepository) UpdatePost(id int, message string) (models.Post, error) {
+	var post models.Post
+	var created time.Time
+	err := p.Conn.QueryRow(
+		`UPDATE post SET message=$1, isEdited=true WHERE id=$2 RETURNING *`,
+		message,
+		id,
+	).Scan(
+		&post.Id,
+		&post.Author,
+		&created,
+		&post.Forum,
+		&post.Message,
+		&post.IsEdited,
+		&post.Parent,
+		&post.Thread,
+	)
+
+	post.Created = strfmt.DateTime(created.UTC()).String()
+
+	return post, err
+}
+
+func (p *postgresAppRepository) SelectPostsByThread(thread models.Thread, limit, since int, sort string, desc bool) ([]models.Post, error) {
+	var threadId int
+	if thread.Id == 0 {
+		thr, err := p.SelectThreadBySlug(thread.Slug)
+		if err != nil {
+			return nil, err
+		}
+
+		threadId = thr.Id
+	} else {
+		threadId = thread.Id
+	}
+
+	switch sort {
+	case "flat":
+		posts, err := p.selectPostsByThreadFlat(threadId, limit, since, desc)
+
+		return posts, err
+	case "tree":
+		posts, err := p.selectPostsByThreadTree(threadId, limit, since, desc)
+
+		return posts, err
+	case "parent_tree":
+		posts, err := p.selectPostsByThreadParentTree(threadId, limit, since, desc)
+
+		return posts, err
+	default:
+		return nil, errors.New("u gay")
+	}
+}
+
+func (p *postgresAppRepository) selectPostsByThreadFlat(id, limit, since int, desc bool) ([]models.Post, error) {
+	var rows *pgx.Rows
+	var err error
+	if since != 0 {
+		if desc {
+			rows, err = p.Conn.Query(`SELECT * FROM post WHERE thread=$1 ORDER BY id DESC LIMIT NULLIF($2, 0)`, id, limit)
+		} else {
+			rows, err = p.Conn.Query(`SELECT * FROM post WHERE thread=$1 ORDER BY id ASC LIMIT NULLIF($2, 0)`, id, limit)
+		}
+	} else {
+		if desc {
+			rows, err = p.Conn.Query(`SELECT * FROM post WHERE thread=$1 AND id < $2 ORDER BY id DESC LIMIT NULLIF($3, 0)`, id, since, limit)
+		} else {
+			rows, err = p.Conn.Query(`SELECT * FROM post WHERE thread=$1 AND id > $2 ORDER BY id DESC LIMIT NULLIF($3, 0)`, id, since, limit)
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var posts []models.Post
+	for rows.Next() {
+		var post models.Post
+		var created time.Time
+
+		err = rows.Scan(
+			&post.Id,
+			&post.Author,
+			&created,
+			&post.Forum,
+			&post.Message,
+			&post.IsEdited,
+			&post.Parent,
+			&post.Thread,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		post.Created = strfmt.DateTime(created.UTC()).String()
+
+		posts = append(posts, post)
+	}
+
+	return posts, err
+}
+
+func (p *postgresAppRepository) selectPostsByThreadTree(id, limit, since int, desc bool) ([]models.Post, error) {
+	var rows *pgx.Rows
+	var err error
+
+	if since == 0 {
+		if desc {
+			rows, err = p.Conn.Query(
+				`SELECT * FROM post
+				WHERE thread=$1 ORDER BY path DESC, id  DESC LIMIT $2;`,
+				id, limit,
+			)
+		} else {
+			rows, err = p.Conn.Query(
+				`SELECT * FROM post
+				WHERE thread=$1 ORDER BY path ASC, id  ASC LIMIT $2;`,
+				id, limit,
+			)
+		}
+	} else {
+		if desc {
+			rows, err = p.Conn.Query(
+				`SELECT * FROM post
+				WHERE thread=$1 AND PATH < (SELECT path FROM post WHERE id = $2)
+				ORDER BY path DESC, id  DESC LIMIT $3;`,
+				id, since, limit,
+			)
+		} else {
+			rows, err = p.Conn.Query(
+				`SELECT * FROM post
+				WHERE thread=$1 AND PATH > (SELECT path FROM post WHERE id = $2)
+				ORDER BY path ASC, id  ASC LIMIT $3;`,
+				id, since, limit,
+			)
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var posts []models.Post
+	for rows.Next() {
+		var post models.Post
+		var created time.Time
+
+		err = rows.Scan(
+			&post.Id,
+			&post.Author,
+			&created,
+			&post.Forum,
+			&post.Message,
+			&post.IsEdited,
+			&post.Parent,
+			&post.Thread,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		post.Created = strfmt.DateTime(created.UTC()).String()
+
+		posts = append(posts, post)
+	}
+
+	return posts, nil
+}
+
+func (p *postgresAppRepository) selectPostsByThreadParentTree(id, limit, since int, desc bool) ([]models.Post, error) {
+	var rows *pgx.Rows
+	var err error
+
+	if since == 0 {
+		if desc {
+			rows, err = p.Conn.Query(
+				`SELECT * FROM post
+				WHERE path[1] IN (SELECT id FROM post WHERE thread = $1 AND parent IS NULL ORDER BY id DESC LIMIT $2)
+				ORDER BY path[1] DESC, path, id;`,
+				id, limit,
+			)
+		} else {
+			rows, err = p.Conn.Query(
+				`SELECT * FROM post
+				WHERE path[1] IN (SELECT id FROM post WHERE thread = $1 AND parent IS NULL ORDER BY id LIMIT $2)
+				ORDER BY path, id;`,
+				id, limit,
+			)
+		}
+	} else {
+		if desc {
+			rows, err = p.Conn.Query(
+				`SELECT * FROM post
+				WHERE path[1] IN (SELECT id FROM post WHERE thread = $1 AND parent IS NULL AND PATH[1] <
+				(SELECT path[1] FROM post WHERE id = $2) ORDER BY id DESC LIMIT $3) ORDER BY path[1] DESC, path, id;`,
+				id, since, limit,
+			)
+		} else {
+			rows, err = p.Conn.Query(`SELECT * FROM post
+				WHERE path[1] IN (SELECT id FROM post WHERE thread = $1 AND parent IS NULL AND PATH[1] >
+				(SELECT path[1] FROM post WHERE id = $2) ORDER BY id ASC LIMIT $3) ORDER BY path, id;`,
+				id, since, limit,
+			)
+		}
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var posts []models.Post
+	for rows.Next() {
+		var post models.Post
+		var created time.Time
+
+		err = rows.Scan(
+			&post.Id,
+			&post.Author,
+			&created,
+			&post.Forum,
+			&post.Message,
+			&post.IsEdited,
+			&post.Parent,
+			&post.Thread,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		post.Created = strfmt.DateTime(created.UTC()).String()
+
+		posts = append(posts, post)
+	}
+
+	return posts, nil
 }

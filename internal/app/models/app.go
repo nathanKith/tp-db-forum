@@ -25,25 +25,25 @@ type Forum struct {
 }
 
 type Thread struct {
-	Id      int        `json:"id"`
-	Author  string     `json:"author"`
-	Created string     `json:"created"`
-	Forum   string     `json:"forum"`
-	Title   string 	   `json:"title"`
-	Message string 	   `json:"message"`
-	Slug    string     `json:"slug"`
-	Votes   int        `json:"votes"`
+	Id      int    `json:"id"`
+	Author  string `json:"author"`
+	Created string `json:"created"`
+	Forum   string `json:"forum"`
+	Title   string `json:"title"`
+	Message string `json:"message"`
+	Slug    string `json:"slug"`
+	Votes   int    `json:"votes"`
 }
 
 type Post struct {
-	Id       int    `json:"id"`
-	Author   string `json:"author"`
-	Created  string `json:"created"`
-	Forum    string `json:"forum"`
-	Message  string `json:"message"`
-	IsEdited bool   `json:"isEdited"`
-	Parent   JsonNullInt    `json:"parent"`
-	Thread   int    `json:"thread"`
+	Id       int         `json:"id"`
+	Author   string      `json:"author"`
+	Created  string      `json:"created"`
+	Forum    string      `json:"forum"`
+	Message  string      `json:"message"`
+	IsEdited bool        `json:"isEdited"`
+	Parent   JsonNullInt `json:"parent"`
+	Thread   int         `json:"thread"`
 }
 
 type JsonNullInt struct {
@@ -78,4 +78,10 @@ type Vote struct {
 	Nickname string `json:"nickname"`
 	Voice    int32  `json:"voice"`
 	IdThread int64  `json:"-"`
+}
+
+type QueryParameters struct {
+	Limit int
+	Since string
+	Desc  bool
 }

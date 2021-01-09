@@ -142,3 +142,69 @@ func (a appUseCase) GetServiceStatus() (map[string]int, error) {
 func (a appUseCase) ClearDatabase() error {
 	return a.appRepository.ClearDatabase()
 }
+
+func (a appUseCase) CheckUsersByForum(slugForum string, parameters models.QueryParameters) ([]models.User, error) {
+	users, err := a.appRepository.SelectUsersByForum(slugForum, parameters)
+
+	return users, err
+}
+
+func (a appUseCase) CheckThreadsByForum(slugForum string, parameters models.QueryParameters) ([]models.Thread, error) {
+	threads, err := a.appRepository.SelectThreadsByForum(slugForum, parameters)
+
+	return threads, err
+}
+
+func (a appUseCase) CheckPostById(id int, related []string) (map[string]interface{}, error) {
+	post, err := a.appRepository.SelectPostById(id)
+	if err != nil {
+		return nil, err
+	}
+
+	data := map[string]interface{}{
+		"post": post,
+	}
+
+	for _, item := range related {
+		switch item {
+		case "forum":
+			forum, err := a.appRepository.SelectForumBySlug(post.Forum)
+			if err != nil {
+				return nil, err
+			}
+
+			data["forum"] = forum
+			break
+		case "user":
+			user, err := a.appRepository.SelectUserByNickname(post.Author)
+			if err != nil {
+				return nil, err
+			}
+
+			data["user"] = user
+			break
+		case "thread":
+			thread, err := a.appRepository.SelectThreadById(post.Thread)
+			if err != nil {
+				return nil, err
+			}
+
+			data["thread"] = thread
+			break
+		}
+	}
+
+	return data, nil
+}
+
+func (a appUseCase) EditPost(id int, message string) (models.Post, error) {
+	post, err := a.appRepository.UpdatePost(id, message)
+
+	return post, err
+}
+
+func (a appUseCase) CheckPostsByThread(thread models.Thread, limit, since int, sort string, desc bool) ([]models.Post, error) {
+	posts, err := a.appRepository.SelectPostsByThread(thread, limit, since, sort, desc)
+
+	return posts, err
+}

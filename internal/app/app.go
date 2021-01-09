@@ -22,6 +22,11 @@ type Repository interface {
 	UpdateVote(vote models.Vote) (models.Vote, error)
 	GetServiceStatus() (map[string]int, error)
 	ClearDatabase() error
+	SelectUsersByForum(slugForum string, parameters models.QueryParameters) ([]models.User, error)
+	SelectThreadsByForum(slugForum string, parameters models.QueryParameters) ([]models.Thread, error)
+	SelectPostById(id int) (models.Post, error)
+	UpdatePost(id int, message string) (models.Post, error)
+	SelectPostsByThread(thread models.Thread, limit, since int, sort string, desc bool) ([]models.Post, error)
 }
 
 type UseCase interface {
@@ -42,4 +47,9 @@ type UseCase interface {
 	UpdateVote(vote models.Vote) (models.Vote, error)
 	GetServiceStatus() (map[string]int, error)
 	ClearDatabase() error
+	CheckUsersByForum(slugForum string, parameters models.QueryParameters) ([]models.User, error)
+	CheckThreadsByForum(slugForum string, parameters models.QueryParameters) ([]models.Thread, error)
+	CheckPostById(id int, related []string) (map[string]interface{}, error)
+	EditPost(id int, message string) (models.Post, error)
+	CheckPostsByThread(thread models.Thread, limit, since int, sort string, desc bool) ([]models.Post, error)
 }

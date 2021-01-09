@@ -27,15 +27,16 @@ func NewAppHandler(router *mux.Router, appUseCase app.UseCase) {
 	router.HandleFunc("/api/forum/create", handler.CreateForum).Methods(http.MethodPost)
 	router.HandleFunc("/api/forum/{slug}/details", handler.ForumDetails).Methods(http.MethodGet)
 	router.HandleFunc("/api/forum/{slug}/create", handler.CreateThread).Methods(http.MethodPost)
-	//router.HandleFunc("/api/forum/{slug}/threads", handler.ForumThreads).Methods(http.MethodGet)
-	//router.HandleFunc("/api/forum/{slug}/users", handler.ForumUsers).Methods(http.MethodGet)
+	router.HandleFunc("/api/forum/{slug}/threads", handler.ForumThreads).Methods(http.MethodGet)
+	router.HandleFunc("/api/forum/{slug}/users", handler.ForumUsers).Methods(http.MethodGet)
 
 	router.HandleFunc("/api/thread/{slug_or_id}/create", handler.CreatePosts).Methods(http.MethodPost)
 	router.HandleFunc("/api/thread/{slug_or_id}/vote", handler.VoteThread).Methods(http.MethodPost)
 	router.HandleFunc("/api/thread/{slug_or_id}/details", handler.ThreadDetails).Methods(http.MethodGet, http.MethodPost)
-	//router.HandleFunc("/api/thread/{slug_or_id}/posts", handler.ThreadPosts).Methods(http.MethodGet)
 
-	//router.HandleFunc("/api/post/{id}/details", handler.PostDetails).Methods(http.MethodGet, http.MethodPost)
+	router.HandleFunc("/api/thread/{slug_or_id}/posts", handler.ThreadPosts).Methods(http.MethodGet)
+
+	router.HandleFunc("/api/post/{id}/details", handler.PostDetails).Methods(http.MethodGet, http.MethodPost)
 
 	router.HandleFunc("/api/service/status", handler.StatusHandler).Methods(http.MethodGet)
 	router.HandleFunc("/api/service/clear", handler.ClearHandler).Methods(http.MethodPost)
@@ -572,4 +573,235 @@ func (h AppHandler) ClearHandler(writer http.ResponseWriter, request *http.Reque
 	}
 
 	writer.WriteHeader(http.StatusOK)
+}
+
+func (h AppHandler) ForumUsers(writer http.ResponseWriter, request *http.Request) {
+	var parameters models.QueryParameters
+	limit, err := strconv.Atoi(request.URL.Query().Get("limit"))
+	if err != nil {
+		limit = 0
+	}
+	parameters.Limit = limit
+
+	since := request.URL.Query().Get("since")
+	parameters.Since = since
+
+	desc, err := strconv.ParseBool(request.URL.Query().Get("desc"))
+	if err != nil {
+		desc = false
+	}
+	parameters.Desc = desc
+
+	slug := strings.TrimSuffix(strings.TrimPrefix(request.URL.Path, "/api/forum/"), "/users")
+
+	users, err := h.appUseCase.CheckUsersByForum(slug, parameters)
+	if err != nil {
+		body, err := errorMarshal("can't find something")
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		writer.WriteHeader(http.StatusNotFound)
+		writer.Write(body)
+
+		return
+	}
+
+	body, err := json.Marshal(users)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	writer.WriteHeader(http.StatusOK)
+	writer.Write(body)
+}
+
+func (h AppHandler) ForumThreads(writer http.ResponseWriter, request *http.Request) {
+	var parameters models.QueryParameters
+	limit, err := strconv.Atoi(request.URL.Query().Get("limit"))
+	if err != nil {
+		limit = 0
+	}
+	parameters.Limit = limit
+
+	since := request.URL.Query().Get("since")
+	parameters.Since = since
+
+	desc, err := strconv.ParseBool(request.URL.Query().Get("desc"))
+	if err != nil {
+		desc = false
+	}
+	parameters.Desc = desc
+
+	slug := strings.TrimSuffix(strings.TrimPrefix(request.URL.Path, "/api/forum/"), "/threads")
+
+	threads, err := h.appUseCase.CheckThreadsByForum(slug, parameters)
+	if err != nil {
+		body, err := errorMarshal("can't find something")
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		writer.WriteHeader(http.StatusNotFound)
+		writer.Write(body)
+
+		return
+	}
+
+	body, err := json.Marshal(threads)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	writer.WriteHeader(http.StatusOK)
+	writer.Write(body)
+}
+
+func (h AppHandler) PostDetails(writer http.ResponseWriter, request *http.Request) {
+	id, err := strconv.Atoi(strings.TrimSuffix(strings.TrimPrefix(request.URL.Path, "/api/post/"), "/details"))
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	if request.Method == "GET" {
+		related := strings.Split(request.URL.Query().Get("related"), ",")
+
+		data, err := h.appUseCase.CheckPostById(id, related)
+		if err != nil {
+			body, err := errorMarshal("can't find something")
+			if err != nil {
+				log.Println(err)
+				return
+			}
+
+			writer.WriteHeader(http.StatusNotFound)
+			writer.Write(body)
+
+			return
+		}
+
+		body, err := json.Marshal(data)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		writer.WriteHeader(http.StatusOK)
+		writer.Write(body)
+
+		return
+	}
+
+	var post models.Post
+	err = json.NewDecoder(request.Body).Decode(&post)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	post, err = h.appUseCase.EditPost(id, post.Message)
+	if err != nil {
+		body, err := errorMarshal("can't find something")
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		writer.WriteHeader(http.StatusNotFound)
+		writer.Write(body)
+
+		return
+	}
+
+	body, err := json.Marshal(post)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	writer.WriteHeader(http.StatusOK)
+	writer.Write(body)
+}
+
+func (h AppHandler) ThreadPosts(writer http.ResponseWriter, request *http.Request) {
+	limit, err := strconv.Atoi(request.URL.Query().Get("limit"))
+	if err != nil {
+		limit = 0
+	}
+
+	since, err := strconv.Atoi(request.URL.Query().Get("since"))
+
+	desc, err := strconv.ParseBool(request.URL.Query().Get("desc"))
+	if err != nil {
+		desc = false
+	}
+
+	sort := request.URL.Query().Get("sort")
+	if sort == "" {
+		sort = "flat"
+	}
+
+	slugOrId := strings.TrimSuffix(strings.TrimPrefix(request.URL.Path, "/api/thread/"), "/posts")
+	var thread models.Thread
+	id, err := strconv.Atoi(slugOrId)
+	if err != nil {
+		thread.Id = id
+	}
+
+	posts, err := h.appUseCase.CheckPostsByThread(thread, limit, since, sort, desc)
+	if err != nil {
+		body, err := errorMarshal("can't find something")
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		writer.WriteHeader(http.StatusNotFound)
+		writer.Write(body)
+
+		return
+	}
+
+	if posts == nil {
+		if thread.Id == 0 {
+			_, err := h.appUseCase.CheckThreadBySlug(thread.Slug)
+			if err == pgx.ErrNoRows {
+				body, err := errorMarshal("can't find something")
+				if err != nil {
+					log.Println(err)
+					return
+				}
+
+				writer.WriteHeader(http.StatusNotFound)
+				writer.Write(body)
+
+				return
+			}
+		}
+
+		body, err := json.Marshal([]int{})
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		writer.WriteHeader(http.StatusOK)
+		writer.Write(body)
+
+		return
+	}
+
+	body, err := json.Marshal(posts)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	writer.WriteHeader(http.StatusOK)
+	writer.Write(body)
 }
