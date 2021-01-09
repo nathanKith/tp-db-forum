@@ -72,7 +72,9 @@ $update_vote$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION updateVotes() RETURNS TRIGGER AS
 $update_vote$
 BEGIN
-    UPDATE thread SET votes=(votes+NEW.Voice*2) WHERE id=NEW.id_thread;
+    IF OLD.voice <> NEW.voice THEN
+        UPDATE thread SET votes=(votes+NEW.Voice*2) WHERE id=NEW.id_thread;
+    END IF;
     return NEW;
 end
 $update_vote$ LANGUAGE plpgsql;

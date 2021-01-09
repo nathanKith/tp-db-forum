@@ -155,7 +155,6 @@ func (h AppHandler) UserProfile(writer http.ResponseWriter, request *http.Reques
 		writer.Write(body)
 
 		return
-
 	}
 
 	body, err := json.Marshal(result)
@@ -175,6 +174,22 @@ func (h AppHandler) CreateForum(writer http.ResponseWriter, request *http.Reques
 		log.Println(err)
 		return
 	}
+
+	user, err := h.appUseCase.CheckUserByNickname(forum.User)
+	if err != nil {
+		body, err := errorMarshal("Can't find user")
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		writer.WriteHeader(http.StatusNotFound)
+		writer.Write(body)
+
+		return
+	}
+
+	forum.User = user.Nickname
 
 	f, err := h.appUseCase.CreateForum(forum)
 	if pgErr, ok := err.(pgx.PgError); ok {
@@ -255,10 +270,13 @@ func (h AppHandler) CreateThread(writer http.ResponseWriter, request *http.Reque
 		return
 	}
 
+	flag := thread.Slug == ""
+
 	newThread, err := h.appUseCase.CreateForumThread(thread)
 	if pgErr, ok := err.(pgx.PgError); ok && pgErr.Code == "23505" {
-		oldThread, err := h.appUseCase.CheckThreadBySlug(slug)
+		oldThread, err := h.appUseCase.CheckThreadBySlug(thread.Slug)
 		if err != nil {
+			log.Println("ХАХАХАХАХАХАХАХ")
 			log.Println(err)
 			return
 		}
@@ -288,6 +306,45 @@ func (h AppHandler) CreateThread(writer http.ResponseWriter, request *http.Reque
 		return
 	}
 
+	forum, err := h.appUseCase.CheckForumBySlug(slug)
+	if err != nil {
+		body, err := errorMarshal("Can't find forum or user\n")
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		writer.WriteHeader(http.StatusNotFound)
+		writer.Write(body)
+
+		return
+	}
+
+	if flag {
+		threadWithoutSlug := models.ThreadWithoutSlug{
+			Id:      newThread.Id,
+			Author:  newThread.Author,
+			Created: newThread.Created,
+			Forum:   forum.Slug,
+			Title:   newThread.Title,
+			Message: newThread.Message,
+			Votes:   newThread.Votes,
+		}
+
+		body, err := json.Marshal(threadWithoutSlug)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		writer.WriteHeader(http.StatusCreated)
+		writer.Write(body)
+
+		return
+	}
+
+	newThread.Forum = forum.Slug
+
 	body, err := json.Marshal(newThread)
 	if err != nil {
 		log.Println(err)
@@ -315,6 +372,8 @@ func (h AppHandler) CreatePosts(writer http.ResponseWriter, request *http.Reques
 
 		writer.WriteHeader(http.StatusCreated)
 		writer.Write(body)
+
+		return
 	}
 
 	slugOrId := strings.TrimSuffix(strings.TrimPrefix(request.URL.Path, "/api/thread/"), "/create")
@@ -475,42 +534,10 @@ func (h AppHandler) VoteThread(writer http.ResponseWriter, request *http.Request
 		return
 	}
 
-	_, err = h.appUseCase.AddVote(vote)
-	if err != nil {
-		if pgErr, ok := err.(pgx.PgError); ok && pgErr.Code == "23505" {
-			_, err := h.appUseCase.UpdateVote(vote)
-			if err != nil {
-				body, err := errorMarshal("can't find thread")
-				if err != nil {
-					log.Println(err)
-					return
-				}
-
-				writer.WriteHeader(http.StatusNotFound)
-				writer.Write(body)
-
-				return
-			}
-		} else {
-			body, err := errorMarshal("can't find thread")
-			if err != nil {
-				log.Println(err)
-				return
-			}
-
-			writer.WriteHeader(http.StatusNotFound)
-			writer.Write(body)
-
-			return
-		}
-	}
-
 	var thread models.Thread
 	id, err := strconv.Atoi(slugOrId)
 	if err != nil {
 		thread, err = h.appUseCase.CheckThreadBySlug(slugOrId)
-	} else {
-		thread, err = h.appUseCase.CheckThreadById(id)
 	}
 
 	if err != nil {
@@ -525,6 +552,47 @@ func (h AppHandler) VoteThread(writer http.ResponseWriter, request *http.Request
 
 		return
 	}
+
+	if thread.Id != 0 {
+		id = thread.Id
+	}
+
+	vote.IdThread = id
+
+	_, err = h.appUseCase.AddVote(vote)
+	if err != nil {
+		if pgErr, ok := err.(pgx.PgError); ok && pgErr.Code == "23505" {
+			_, err := h.appUseCase.UpdateVote(vote)
+			if err != nil {
+				body, err := errorMarshal("can't find thread or this")
+				if err != nil {
+					log.Println(err)
+					return
+				}
+
+				writer.WriteHeader(http.StatusNotFound)
+				writer.Write(body)
+
+				return
+			}
+		} else {
+			log.Println("FFFFFFFFFFFFFFF")
+			log.Println(err)
+			log.Println("FFFFFFFFFFFFFFF")
+			body, err := errorMarshal("can't find thread this")
+			if err != nil {
+				log.Println(err)
+				return
+			}
+
+			writer.WriteHeader(http.StatusNotFound)
+			writer.Write(body)
+
+			return
+		}
+	}
+
+	thread, err = h.appUseCase.CheckThreadById(id)
 
 	body, err := json.Marshal(thread)
 	if err != nil {
@@ -638,8 +706,22 @@ func (h AppHandler) ForumThreads(writer http.ResponseWriter, request *http.Reque
 	slug := strings.TrimSuffix(strings.TrimPrefix(request.URL.Path, "/api/forum/"), "/threads")
 
 	threads, err := h.appUseCase.CheckThreadsByForum(slug, parameters)
-	if err != nil {
-		body, err := errorMarshal("can't find something")
+	if err == pgx.ErrNoRows || len(threads) == 0 {
+		_, err := h.appUseCase.CheckThreadByForum(slug)
+		if err == nil {
+			body, err := json.Marshal([]int{})
+			if err != nil {
+				log.Println(err)
+				return
+			}
+
+			writer.WriteHeader(http.StatusOK)
+			writer.Write(body)
+
+			return
+		}
+
+		body, err := errorMarshal("can't find something bad")
 		if err != nil {
 			log.Println(err)
 			return

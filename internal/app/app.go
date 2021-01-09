@@ -27,6 +27,7 @@ type Repository interface {
 	SelectPostById(id int) (models.Post, error)
 	UpdatePost(id int, message string) (models.Post, error)
 	SelectPostsByThread(thread models.Thread, limit, since int, sort string, desc bool) ([]models.Post, error)
+	SelectThreadByForum(forum string) (models.Thread, error)
 }
 
 type UseCase interface {
@@ -52,4 +53,5 @@ type UseCase interface {
 	CheckPostById(id int, related []string) (map[string]interface{}, error)
 	EditPost(id int, message string) (models.Post, error)
 	CheckPostsByThread(thread models.Thread, limit, since int, sort string, desc bool) ([]models.Post, error)
+	CheckThreadByForum(forum string) (models.Thread, error)
 }

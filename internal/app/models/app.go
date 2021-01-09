@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql"
 	"encoding/json"
+	"github.com/jackc/pgx/pgtype"
 )
 
 type Error struct {
@@ -35,15 +36,26 @@ type Thread struct {
 	Votes   int    `json:"votes"`
 }
 
+type ThreadWithoutSlug struct {
+	Id      int    `json:"id"`
+	Author  string `json:"author"`
+	Created string `json:"created"`
+	Forum   string `json:"forum"`
+	Title   string `json:"title"`
+	Message string `json:"message"`
+	Votes   int    `json:"votes"`
+}
+
 type Post struct {
-	Id       int         `json:"id"`
-	Author   string      `json:"author"`
-	Created  string      `json:"created"`
-	Forum    string      `json:"forum"`
-	Message  string      `json:"message"`
-	IsEdited bool        `json:"isEdited"`
-	Parent   JsonNullInt `json:"parent"`
-	Thread   int         `json:"thread"`
+	Id       int         	  `json:"id"`
+	Author   string      	  `json:"author"`
+	Created  string      	  `json:"created"`
+	Forum    string      	  `json:"forum"`
+	Message  string      	  `json:"message"`
+	IsEdited bool        	  `json:"isEdited"`
+	Parent   JsonNullInt 	  `json:"parent"`
+	Thread   int         	  `json:"thread"`
+	Path     pgtype.Int8Array `json:"-"`
 }
 
 type JsonNullInt struct {
@@ -76,8 +88,8 @@ var PostParentError = `insert or update on table "post" violates foreign key con
 
 type Vote struct {
 	Nickname string `json:"nickname"`
-	Voice    int32  `json:"voice"`
-	IdThread int64  `json:"-"`
+	Voice    int    `json:"voice"`
+	IdThread int    `json:"-"`
 }
 
 type QueryParameters struct {

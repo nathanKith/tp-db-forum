@@ -208,3 +208,9 @@ func (a appUseCase) CheckPostsByThread(thread models.Thread, limit, since int, s
 
 	return posts, err
 }
+
+func (a appUseCase) CheckThreadByForum(forum string) (models.Thread, error) {
+	thread, err := a.appRepository.SelectThreadByForum(forum)
+
+	return thread, err
+}

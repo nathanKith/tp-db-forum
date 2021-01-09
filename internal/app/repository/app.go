@@ -29,42 +29,32 @@ func (p *postgresAppRepository) InsertUser(user models.User) error {
 }
 
 func (p *postgresAppRepository) SelectUserByNickname(nickname string) (models.User, error) {
-	row := p.Conn.QueryRow(`SELECT fullname, about, email FROM users WHERE nickname=$1 LIMIT 1;`, nickname)
+	row := p.Conn.QueryRow(`SELECT nickname, fullname, about, email FROM users WHERE LOWER(nickname)=LOWER($1) LIMIT 1;`, nickname)
 
-	var fullName, about, email string
-	err := row.Scan(&fullName, &about, &email)
+	var user models.User
+	err := row.Scan(&user.Nickname, &user.FullName, &user.About, &user.Email)
 	if err != nil {
 		log.Println(err)
 		return models.User{}, err
 	}
 
-	return models.User{
-		About:    about,
-		Email:    email,
-		FullName: fullName,
-		Nickname: nickname,
-	}, nil
+	return user, nil
 }
 
 func (p *postgresAppRepository) SelectUserByEmail(email string) (models.User, error) {
-	row := p.Conn.QueryRow(`SELECT nickname, fullname, about FROM users WHERE email=$1 LIMIT 1;`, email)
+	row := p.Conn.QueryRow(`SELECT email, nickname, fullname, about FROM users WHERE email=$1 LIMIT 1;`, email)
 
-	var nickname, fullName, about string
-	err := row.Scan(&nickname, &fullName, &about)
+	var user models.User
+	err := row.Scan(&user.Email, &user.Nickname, &user.FullName, &user.About)
 	if err != nil {
 		return models.User{}, err
 	}
 
-	return models.User{
-		About:    about,
-		Email:    email,
-		FullName: fullName,
-		Nickname: nickname,
-	}, nil
+	return user, nil
 }
 
 func (p *postgresAppRepository) SelectUsersByNickAndEmail(nickname, email string) ([]models.User, error) {
-	rows, err := p.Conn.Query(`SELECT * FROM users WHERE email=$1 OR nickname=$2 LIMIT 2;`, email, nickname)
+	rows, err := p.Conn.Query(`SELECT * FROM users WHERE email=$1 OR LOWER(nickname)=LOWER($2) LIMIT 2;`, email, nickname)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +76,7 @@ func (p *postgresAppRepository) SelectUsersByNickAndEmail(nickname, email string
 func (p *postgresAppRepository) UpdateUser(user models.User) (models.User, error) {
 	var newUser models.User
 	err := p.Conn.QueryRow(
-		`UPDATE users SET email=$1, about=$2, fullname=$3 WHERE nickname=$4 RETURNING *`,
+		`UPDATE users SET email=$1, about=$2, fullname=$3 WHERE LOWER(nickname)=LOWER($4) RETURNING *`,
 		user.Email,
 		user.About,
 		user.FullName,
@@ -97,14 +87,15 @@ func (p *postgresAppRepository) UpdateUser(user models.User) (models.User, error
 }
 
 func (p *postgresAppRepository) InsertForum(forum models.Forum) (models.Forum, error) {
-	_, err := p.Conn.Exec(
-		`INSERT INTO forum(slug, title, "user") VALUES ($1, $2, $3)`,
+	var newForum models.Forum
+	err := p.Conn.QueryRow(
+		`INSERT INTO forum(slug, title, "user") VALUES ($1, $2, $3) RETURNING *`,
 		forum.Slug,
 		forum.Title,
 		forum.User,
-	)
+	).Scan(&newForum.Slug, &newForum.Title, &newForum.User, &newForum.Posts, &newForum.Threads)
 
-	return forum, err
+	return newForum, err
 }
 
 func (p *postgresAppRepository) SelectForumBySlug(slug string) (models.Forum, error) {
@@ -159,7 +150,7 @@ func (p *postgresAppRepository) InsertThread(thread models.Thread) (models.Threa
 }
 
 func (p *postgresAppRepository) SelectThreadBySlug(slug string) (models.Thread, error) {
-	row := p.Conn.QueryRow(`SELECT * FROM thread WHERE slug=$1 LIMIT 1;`, slug)
+	row := p.Conn.QueryRow(`SELECT * FROM thread WHERE LOWER(slug)=LOWER($1) LIMIT 1;`, slug)
 
 	var thread models.Thread
 	var created time.Time
@@ -192,7 +183,6 @@ func (p *postgresAppRepository) InsertPosts(posts []models.Post) ([]models.Post,
 	currentTime := time.Now()
 
 	var resultPosts []models.Post
-
 	for _, post := range posts {
 		var currentPost models.Post
 		var created time.Time
@@ -213,6 +203,7 @@ func (p *postgresAppRepository) InsertPosts(posts []models.Post) ([]models.Post,
 			&currentPost.IsEdited,
 			&currentPost.Parent,
 			&currentPost.Thread,
+			&currentPost.Path,
 		)
 		if err != nil {
 			tx.Rollback()
@@ -280,7 +271,7 @@ func (p *postgresAppRepository) InsertVote(vote models.Vote) (models.Vote, error
 
 func (p *postgresAppRepository) UpdateVote(vote models.Vote) (models.Vote, error) {
 	_, err := p.Conn.Exec(
-		`UPDATE vote SET voice=$1 WHERE id_thread=$2 AND nickname=$3`,
+		`UPDATE votes SET voice=$1 WHERE id_thread=$2 AND nickname=$3`,
 		vote.Voice,
 		vote.IdThread,
 		vote.Nickname,
@@ -319,7 +310,7 @@ func (p *postgresAppRepository) GetServiceStatus() (map[string]int, error) {
 }
 
 func (p *postgresAppRepository) ClearDatabase() error {
-	_, err := p.Conn.Exec(`TRUNCATE users, thread, forum, post, vote`)
+	_, err := p.Conn.Exec(`TRUNCATE users, thread, forum, post, votes;`)
 
 	return err
 }
@@ -372,7 +363,7 @@ func (p *postgresAppRepository) SelectThreadsByForum(slugForum string, parameter
 				slugForum, parameters.Since, parameters.Limit)
 		} else {
 			rows, err = p.Conn.Query(
-				`SELECT * FROM thread WHERE LOWER(forum)=LOWER($1) AND created <= $2 
+				`SELECT * FROM thread WHERE LOWER(forum)=LOWER($1) AND created >= $2 
 				ORDER BY created ASC LIMIT NULLIF($3, 0)`,
 				slugForum, parameters.Since, parameters.Limit)
 		}
@@ -380,13 +371,13 @@ func (p *postgresAppRepository) SelectThreadsByForum(slugForum string, parameter
 		if parameters.Desc {
 			rows, err = p.Conn.Query(
 				`SELECT * FROM thread WHERE LOWER(forum)=LOWER($1)
-				ORDER BY created DESC LIMIT NULLIF($3, 0)`,
-				slugForum, parameters.Since, parameters.Limit)
+				ORDER BY created DESC LIMIT NULLIF($2, 0)`,
+				slugForum, parameters.Limit)
 		} else {
 			rows, err = p.Conn.Query(
 				`SELECT * FROM thread WHERE LOWER(forum)=LOWER($1)
-				ORDER BY created ASC LIMIT NULLIF($3, 0)`,
-				slugForum, parameters.Since, parameters.Limit)
+				ORDER BY created ASC LIMIT NULLIF($2, 0)`,
+				slugForum, parameters.Limit)
 		}
 	}
 
@@ -420,7 +411,7 @@ func (p *postgresAppRepository) SelectThreadsByForum(slugForum string, parameter
 		threads = append(threads, thread)
 	}
 
-	return threads, nil
+	return threads, err
 }
 
 func (p *postgresAppRepository) SelectPostById(id int) (models.Post, error) {
@@ -687,4 +678,16 @@ func (p *postgresAppRepository) selectPostsByThreadParentTree(id, limit, since i
 	}
 
 	return posts, nil
+}
+
+func (p *postgresAppRepository) SelectThreadByForum(forum string) (models.Thread, error) {
+	row := p.Conn.QueryRow(`SELECT * FROM thread WHERE LOWER(forum)=LOWER($1) LIMIT 1;`, forum)
+
+	var thread models.Thread
+	var created time.Time
+	err := row.Scan(&thread.Id, &thread.Author, &created, &thread.Forum, &thread.Message, &thread.Slug, &thread.Title, &thread.Votes)
+
+	thread.Created = strfmt.DateTime(created.UTC()).String()
+
+	return thread, err
 }
