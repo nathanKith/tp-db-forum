@@ -14,9 +14,9 @@ RUN apt-get -y update && apt-get install -y tzdata
 #RUN unlink
 #RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-RUN apt-get -y update && apt-get install -y locales gnupg2
-RUN locale-gen en_US.UTF-8
-RUN update-locale LANG=en_US.UTF-8
+#RUN apt-get -y update && apt-get install -y locales gnupg2
+#RUN locale-gen en_US.UTF-8
+#RUN update-locale LANG=en_US.UTF-8
 
 ENV PGVER 12
 RUN apt-get -y update && apt-get install -y postgresql-$PGVER

@@ -6,7 +6,6 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/jackc/pgx"
 	"log"
-	"strings"
 	"time"
 	repo "tp-db-forum/internal/app"
 	"tp-db-forum/internal/app/models"
@@ -316,23 +315,47 @@ func (p *postgresAppRepository) ClearDatabase() error {
 }
 
 func (p *postgresAppRepository) SelectUsersByForum(slugForum string, parameters models.QueryParameters) ([]models.User, error) {
-	query := `SELECT users.nickname, users.fullname, users.about, users.email FROM 
-			  ((SELECT thread.author FROM thread WHERE thread.forum=$1) UNION 
-			  (SELECT post.author FROM post WHERE post.author=$1)) AS union_users 
-			  JOIN users ON union_users.author=users.nickname
-			  WHERE LOWER(author) < LOWER($3) ORDER BY LOWER(author) %s LIMIT NULLIF($2)`
-
-	if parameters.Desc {
-		query = fmt.Sprintf(query, "DESC")
-	} else {
-		query = fmt.Sprintf(query, "ASC")
-	}
+	var rows *pgx.Rows
+	var err error
 
 	if parameters.Since == "" {
-		query = strings.ReplaceAll(query, `WHERE LOWER(author) < LOWER($3)`, "")
+		var query string
+
+		if parameters.Desc {
+			query = `SELECT nickname, fullname, about, email FROM 
+			  		  ((SELECT thread.author FROM thread WHERE thread.forum=$1) UNION 
+			  		  (SELECT post.author FROM post WHERE post.forum=$1)) AS union_users 
+			  		  INNER JOIN users u ON union_users.author=u.nickname
+			  		  ORDER BY LOWER(nickname) DESC LIMIT NULLIF($2, 0)`
+		} else {
+			query = `SELECT nickname, fullname, about, email FROM 
+			  		  ((SELECT thread.author FROM thread WHERE thread.forum=$1) UNION 
+			  		  (SELECT post.author FROM post WHERE post.forum=$1)) AS union_users 
+			  		  INNER JOIN users u ON union_users.author=u.nickname
+			  		  ORDER BY LOWER(nickname) ASC LIMIT NULLIF($2, 0)`
+		}
+
+		rows, err = p.Conn.Query(query, slugForum, parameters.Limit)
+	} else {
+		var query string
+
+		if parameters.Desc {
+			query = `SELECT nickname, fullname, about, email FROM 
+			  		  ((SELECT thread.author FROM thread WHERE thread.forum=$1) UNION 
+			  		  (SELECT post.author FROM post WHERE post.forum=$1)) AS union_users 
+			  		  INNER JOIN users u ON union_users.author=u.nickname
+			  		  WHERE LOWER(nickname) < LOWER($2) ORDER BY LOWER(union_users.author) DESC LIMIT NULLIF($3, 0)`
+		} else {
+			query = `SELECT nickname, fullname, about, email FROM 
+			  		  ((SELECT thread.author FROM thread WHERE thread.forum=$1) UNION 
+			  		  (SELECT post.author FROM post WHERE post.forum=$1)) AS union_users 
+			  		  INNER JOIN users u ON union_users.author=u.nickname
+			  		  WHERE LOWER(nickname) > LOWER($2) ORDER BY LOWER(union_users.author) ASC LIMIT NULLIF($3, 0)`
+		}
+
+		rows, err = p.Conn.Query(query, slugForum, parameters.Since, parameters.Limit)
 	}
 
-	rows, err := p.Conn.Query(query, slugForum, parameters.Limit, parameters.Since)
 	if err != nil {
 		return nil, err
 	}
@@ -429,6 +452,7 @@ func (p *postgresAppRepository) SelectPostById(id int) (models.Post, error) {
 		&post.IsEdited,
 		&post.Parent,
 		&post.Thread,
+		&post.Path,
 	)
 	if err != nil {
 		return models.Post{}, err
@@ -440,9 +464,42 @@ func (p *postgresAppRepository) SelectPostById(id int) (models.Post, error) {
 }
 
 func (p *postgresAppRepository) UpdatePost(id int, message string) (models.Post, error) {
+	oldPost, err := p.SelectPostById(id)
+	if err != nil {
+		return models.Post{}, err
+	}
+
+	if oldPost.Message == message {
+		return oldPost, nil
+	}
+
+	if message == "" {
+		var post models.Post
+		var created time.Time
+
+		err := p.Conn.QueryRow(
+			`SELECT * FROM post WHERE id=$1`,
+			id,
+		).Scan(
+			&post.Id,
+			&post.Author,
+			&created,
+			&post.Forum,
+			&post.Message,
+			&post.IsEdited,
+			&post.Parent,
+			&post.Thread,
+			&post.Path,
+		)
+
+		post.Created = strfmt.DateTime(created.UTC()).String()
+
+		return post, err
+	}
+
 	var post models.Post
 	var created time.Time
-	err := p.Conn.QueryRow(
+	err = p.Conn.QueryRow(
 		`UPDATE post SET message=$1, isEdited=true WHERE id=$2 RETURNING *`,
 		message,
 		id,
@@ -455,6 +512,7 @@ func (p *postgresAppRepository) UpdatePost(id int, message string) (models.Post,
 		&post.IsEdited,
 		&post.Parent,
 		&post.Thread,
+		&post.Path,
 	)
 
 	post.Created = strfmt.DateTime(created.UTC()).String()
@@ -496,7 +554,7 @@ func (p *postgresAppRepository) SelectPostsByThread(thread models.Thread, limit,
 func (p *postgresAppRepository) selectPostsByThreadFlat(id, limit, since int, desc bool) ([]models.Post, error) {
 	var rows *pgx.Rows
 	var err error
-	if since != 0 {
+	if since == 0 {
 		if desc {
 			rows, err = p.Conn.Query(`SELECT * FROM post WHERE thread=$1 ORDER BY id DESC LIMIT NULLIF($2, 0)`, id, limit)
 		} else {
@@ -506,7 +564,7 @@ func (p *postgresAppRepository) selectPostsByThreadFlat(id, limit, since int, de
 		if desc {
 			rows, err = p.Conn.Query(`SELECT * FROM post WHERE thread=$1 AND id < $2 ORDER BY id DESC LIMIT NULLIF($3, 0)`, id, since, limit)
 		} else {
-			rows, err = p.Conn.Query(`SELECT * FROM post WHERE thread=$1 AND id > $2 ORDER BY id DESC LIMIT NULLIF($3, 0)`, id, since, limit)
+			rows, err = p.Conn.Query(`SELECT * FROM post WHERE thread=$1 AND id > $2 ORDER BY id ASC LIMIT NULLIF($3, 0)`, id, since, limit)
 		}
 	}
 	if err != nil {
@@ -529,6 +587,7 @@ func (p *postgresAppRepository) selectPostsByThreadFlat(id, limit, since int, de
 			&post.IsEdited,
 			&post.Parent,
 			&post.Thread,
+			&post.Path,
 		)
 		if err != nil {
 			return nil, err
@@ -597,6 +656,7 @@ func (p *postgresAppRepository) selectPostsByThreadTree(id, limit, since int, de
 			&post.IsEdited,
 			&post.Parent,
 			&post.Thread,
+			&post.Path,
 		)
 		if err != nil {
 			return nil, err
@@ -667,6 +727,7 @@ func (p *postgresAppRepository) selectPostsByThreadParentTree(id, limit, since i
 			&post.IsEdited,
 			&post.Parent,
 			&post.Thread,
+			&post.Path,
 		)
 		if err != nil {
 			return nil, err

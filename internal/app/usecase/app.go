@@ -181,7 +181,7 @@ func (a appUseCase) CheckPostById(id int, related []string) (map[string]interfac
 				return nil, err
 			}
 
-			data["user"] = user
+			data["author"] = user
 			break
 		case "thread":
 			thread, err := a.appRepository.SelectThreadById(post.Thread)

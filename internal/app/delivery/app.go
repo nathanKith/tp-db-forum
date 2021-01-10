@@ -363,19 +363,6 @@ func (h AppHandler) CreatePosts(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 
-	if len(posts) == 0 {
-		body, err := json.Marshal(posts)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		writer.WriteHeader(http.StatusCreated)
-		writer.Write(body)
-
-		return
-	}
-
 	slugOrId := strings.TrimSuffix(strings.TrimPrefix(request.URL.Path, "/api/thread/"), "/create")
 
 	var id int
@@ -411,6 +398,19 @@ func (h AppHandler) CreatePosts(writer http.ResponseWriter, request *http.Reques
 		}
 	}
 
+	if len(posts) == 0 {
+		body, err := json.Marshal(posts)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		writer.WriteHeader(http.StatusCreated)
+		writer.Write(body)
+
+		return
+	}
+
 	resultPosts, err := h.appUseCase.CreatePosts(posts, thread)
 	if err != nil {
 		if pgErr, ok := err.(pgx.PgError); ok && pgErr.Code == "23503" {
@@ -438,6 +438,19 @@ func (h AppHandler) CreatePosts(writer http.ResponseWriter, request *http.Reques
 
 			return
 		}
+	}
+
+	if resultPosts == nil {
+		body, err := errorMarshal("conflict")
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		writer.WriteHeader(http.StatusConflict)
+		writer.Write(body)
+
+		return
 	}
 
 	body, err := json.Marshal(resultPosts)
@@ -576,9 +589,6 @@ func (h AppHandler) VoteThread(writer http.ResponseWriter, request *http.Request
 				return
 			}
 		} else {
-			log.Println("FFFFFFFFFFFFFFF")
-			log.Println(err)
-			log.Println("FFFFFFFFFFFFFFF")
 			body, err := errorMarshal("can't find thread this")
 			if err != nil {
 				log.Println(err)
@@ -647,7 +657,7 @@ func (h AppHandler) ForumUsers(writer http.ResponseWriter, request *http.Request
 	var parameters models.QueryParameters
 	limit, err := strconv.Atoi(request.URL.Query().Get("limit"))
 	if err != nil {
-		limit = 0
+		limit = 100
 	}
 	parameters.Limit = limit
 
@@ -671,6 +681,32 @@ func (h AppHandler) ForumUsers(writer http.ResponseWriter, request *http.Request
 		}
 
 		writer.WriteHeader(http.StatusNotFound)
+		writer.Write(body)
+
+		return
+	}
+
+	if len(users) == 0 {
+		_, err := h.appUseCase.CheckForumBySlug(slug)
+		if err != nil {
+			body, err := errorMarshal("can't find something")
+			if err != nil {
+				log.Println(err)
+				return
+			}
+
+			writer.WriteHeader(http.StatusNotFound)
+			writer.Write(body)
+
+			return
+		}
+		body, err := json.Marshal([]int{})
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		writer.WriteHeader(http.StatusOK)
 		writer.Write(body)
 
 		return
@@ -832,12 +868,14 @@ func (h AppHandler) ThreadPosts(writer http.ResponseWriter, request *http.Reques
 	var thread models.Thread
 	id, err := strconv.Atoi(slugOrId)
 	if err != nil {
+		thread.Slug = slugOrId
+	} else {
 		thread.Id = id
 	}
 
 	posts, err := h.appUseCase.CheckPostsByThread(thread, limit, since, sort, desc)
 	if err != nil {
-		body, err := errorMarshal("can't find something")
+		body, err := errorMarshal("can't find something this")
 		if err != nil {
 			log.Println(err)
 			return
@@ -852,6 +890,20 @@ func (h AppHandler) ThreadPosts(writer http.ResponseWriter, request *http.Reques
 	if posts == nil {
 		if thread.Id == 0 {
 			_, err := h.appUseCase.CheckThreadBySlug(thread.Slug)
+			if err == pgx.ErrNoRows {
+				body, err := errorMarshal("can't find something")
+				if err != nil {
+					log.Println(err)
+					return
+				}
+
+				writer.WriteHeader(http.StatusNotFound)
+				writer.Write(body)
+
+				return
+			}
+		} else {
+			_, err := h.appUseCase.CheckThreadById(thread.Id)
 			if err == pgx.ErrNoRows {
 				body, err := errorMarshal("can't find something")
 				if err != nil {
