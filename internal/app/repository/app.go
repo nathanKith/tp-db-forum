@@ -224,7 +224,7 @@ func (p *postgresAppRepository) InsertPosts(posts []models.Post) ([]models.Post,
 }
 
 func (p *postgresAppRepository) UpdateThread(thread models.Thread) (models.Thread, error) {
-	query := `UPDATE thread SET title=$1, message=$2 WHERE %s RETURNING *`
+	query := `UPDATE thread SET title=COALESCE(NULLIF($1, ''), title), message=COALESCE(NULLIF($2, ''), message) WHERE %s RETURNING *`
 
 	var row *pgx.Row
 	if thread.Slug == "" {
