@@ -488,6 +488,21 @@ func (h AppHandler) ThreadDetails(writer http.ResponseWriter, request *http.Requ
 			return
 		}
 
+		if models.IsUUID(thread.Slug) {
+			result := models.ThreadToWithout(thread)
+
+			body, err := json.Marshal(result)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+
+			writer.WriteHeader(http.StatusOK)
+			writer.Write(body)
+
+			return
+		}
+
 		body, err := json.Marshal(thread)
 		if err != nil {
 			log.Println(err)

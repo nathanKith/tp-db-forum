@@ -189,7 +189,14 @@ func (a appUseCase) CheckPostById(id int, related []string) (map[string]interfac
 				return nil, err
 			}
 
-			data["thread"] = thread
+			if models.IsUUID(thread.Slug) {
+				result := models.ThreadToWithout(thread)
+
+				data["thread"] = result
+			} else {
+				data["thread"] = thread
+			}
+
 			break
 		}
 	}
