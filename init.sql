@@ -170,22 +170,19 @@ CREATE INDEX users_email_nickname_index on users (email, lower(nickname));
 CREATE INDEX thread_slug_index ON thread (slug);
 CREATE INDEX thread_slug_lower_index ON thread (lower(slug));
 CREATE INDEX thread_id_index ON thread (id);
--- CREATE INDEX thread_slug_id_index ON thread (lower(slug), id);
 CREATE INDEX thread_forum_lower_index ON thread (lower(forum));
 CREATE INDEX thread_id_forum_index ON thread (forum);
-CREATE INDEX thread_author_forum_index ON thread(author);
+-- CREATE INDEX thread_author_forum_index ON thread(author);
 CREATE INDEX thread_created_index ON thread (created);
 
 CREATE INDEX post_forum_index ON post (forum);
-CREATE INDEX post_author_index ON post (author);
+-- CREATE INDEX post_author_index ON post (author);
 CREATE INDEX post_id_index ON post (id);
-CREATE INDEX post_first_parent_thread_index ON post ((post.path[1]), thread);
-CREATE INDEX post_first_parent_id_index ON post (id, (post.path[1]));
-CREATE INDEX post_first_parent_index ON post ((post.path[1]));
 CREATE INDEX post_path_index ON post ((post.path));
 CREATE INDEX post_thread_index ON post (thread);
 CREATE INDEX post_thread_id_index ON post (id, thread);
-CREATE INDEX post_path_id_index ON post (id, (post.path));
-CREATE INDEX post_thread_path_id_index ON post (thread, (post.parent), id);
+create index index_posts_thread_path on post (thread, path);
+create index index_posts_thread_parent_path on post (thread, parent, path);
+create index index_posts_path1_path on post ((path[1]), path);
 
 CREATE INDEX vote_nickname_index ON votes (nickname, id_thread);
