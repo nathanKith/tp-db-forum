@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql"
 	"encoding/json"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/pgtype"
 )
 
@@ -44,6 +45,18 @@ type ThreadWithoutSlug struct {
 	Title   string `json:"title"`
 	Message string `json:"message"`
 	Votes   int    `json:"votes"`
+}
+
+func ThreadToWithout(thread Thread) ThreadWithoutSlug {
+	return ThreadWithoutSlug{
+		Id:      thread.Id,
+		Author:  thread.Author,
+		Created: thread.Created,
+		Forum:   thread.Forum,
+		Title:   thread.Title,
+		Message: thread.Message,
+		Votes:   thread.Votes,
+	}
 }
 
 type Post struct {
@@ -96,4 +109,16 @@ type QueryParameters struct {
 	Limit int
 	Since string
 	Desc  bool
+}
+
+func IsUUID(value string) bool {
+	n := len(value)
+
+	if n > 36 || n < 32 {
+		return false
+	}
+
+	_, err := uuid.Parse(value)
+
+	return err == nil
 }

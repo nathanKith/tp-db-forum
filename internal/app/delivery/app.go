@@ -527,6 +527,21 @@ func (h AppHandler) ThreadDetails(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 
+	if models.IsUUID(newThread.Slug) {
+		result := models.ThreadToWithout(newThread)
+
+		body, err := json.Marshal(result)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		writer.WriteHeader(http.StatusOK)
+		writer.Write(body)
+
+		return
+	}
+
 	body, err := json.Marshal(newThread)
 	if err != nil {
 		log.Println(err)
@@ -603,6 +618,21 @@ func (h AppHandler) VoteThread(writer http.ResponseWriter, request *http.Request
 	}
 
 	thread, err = h.appUseCase.CheckThreadById(id)
+
+	if models.IsUUID(thread.Slug) {
+		result := models.ThreadToWithout(thread)
+
+		body, err := json.Marshal(result)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		writer.WriteHeader(http.StatusOK)
+		writer.Write(body)
+
+		return
+	}
 
 	body, err := json.Marshal(thread)
 	if err != nil {
@@ -769,7 +799,18 @@ func (h AppHandler) ForumThreads(writer http.ResponseWriter, request *http.Reque
 		return
 	}
 
-	body, err := json.Marshal(threads)
+	var result []interface{}
+	for _, thr := range threads {
+		if models.IsUUID(thr.Slug) {
+			tw := models.ThreadToWithout(thr)
+
+			result = append(result, tw)
+		} else {
+			result = append(result, thr)
+		}
+	}
+
+	body, err := json.Marshal(result)
 	if err != nil {
 		log.Println(err)
 		return
