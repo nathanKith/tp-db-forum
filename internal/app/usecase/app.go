@@ -94,8 +94,8 @@ func (a appUseCase) CheckThreadById(id int) (models.Thread, error) {
 	return thread, err
 }
 
-func (a appUseCase) CreatePosts(posts []models.Post, thread models.Thread) ([]models.Post, error) {
-	result, err := a.appRepository.InsertPosts(posts, thread.Forum, thread.Id)
+func (a appUseCase) CreatePosts(posts []models.Post, id int) ([]models.Post, error) {
+	result, err := a.appRepository.InsertPosts(posts, id)
 
 	return result, err
 }
@@ -203,4 +203,10 @@ func (a appUseCase) CheckThreadByForum(forum string) (models.Thread, error) {
 	thread, err := a.appRepository.SelectThreadByForum(forum)
 
 	return thread, err
+}
+
+func (a appUseCase) CheckThreadIdBySlug(slug string) (int, error) {
+	id, err := a.appRepository.SelectThreadIdBySlug(slug)
+
+	return id, err
 }

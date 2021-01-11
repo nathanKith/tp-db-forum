@@ -175,7 +175,26 @@ func (p *postgresAppRepository) SelectThreadById(id int) (models.Thread, error) 
 	return thread, err
 }
 
-func (p *postgresAppRepository) InsertPosts(posts []models.Post, forum string, thread int) ([]models.Post, error) {
+func (p *postgresAppRepository) selectForumSlugById(id int) (string, error) {
+	query := `SELECT forum FROM thread WHERE id=$1`
+
+	var slug string
+	err := p.Conn.QueryRow(query, id).Scan(&slug)
+	return slug, err
+}
+
+func (p *postgresAppRepository) InsertPosts(posts []models.Post, thread int) ([]models.Post, error) {
+	resultPosts := make([]models.Post, 0, 0)
+
+	if len(posts) == 0 {
+		return resultPosts, nil
+	}
+
+	forum, err := p.selectForumSlugById(thread)
+	if err != nil {
+		return nil, err
+	}
+
 	insert := `INSERT INTO post(author, created, forum, message, parent, thread) VALUES `
 	var values []interface{}
 	timeCreated := time.Now()
@@ -205,7 +224,7 @@ func (p *postgresAppRepository) InsertPosts(posts []models.Post, forum string, t
 
 	defer rows.Close()
 
-	var resultPosts []models.Post
+	// var resultPosts []models.Post
 	for rows.Next() {
 		var currentPost models.Post
 		var created time.Time
@@ -733,4 +752,12 @@ func (p *postgresAppRepository) SelectThreadByForum(forum string) (models.Thread
 	thread.Created = strfmt.DateTime(created.UTC()).String()
 
 	return thread, err
+}
+
+func (p* postgresAppRepository) SelectThreadIdBySlug(slug string) (int, error) {
+	query := `SELECT id FROM thread WHERE LOWER(slug)=LOWER($1)`
+
+	var id int
+	err := p.Conn.QueryRow(query, slug).Scan(&id)
+	return id, err
 }

@@ -382,7 +382,7 @@ func (h AppHandler) CreatePosts(writer http.ResponseWriter, request *http.Reques
 	var thread models.Thread
 	id, err = strconv.Atoi(slugOrId)
 	if err != nil {
-		thread, err = h.appUseCase.CheckThreadBySlug(slugOrId)
+		id, err = h.appUseCase.CheckThreadIdBySlug(slugOrId)
 		if err != nil {
 			body, err := errorMarshal("Haven't this thread")
 			if err != nil {
@@ -396,7 +396,21 @@ func (h AppHandler) CreatePosts(writer http.ResponseWriter, request *http.Reques
 			return
 		}
 
-		id = thread.Id
+		//thread, err = h.appUseCase.CheckThreadBySlug(slugOrId)
+		//if err != nil {
+		//	body, err := errorMarshal("Haven't this thread")
+		//	if err != nil {
+		//		log.Println(err)
+		//		return
+		//	}
+		//
+		//	writer.WriteHeader(http.StatusNotFound)
+		//	writer.Write(body)
+		//
+		//	return
+		//}
+		//
+		//id = thread.Id
 	} else {
 		thread, err = h.appUseCase.CheckThreadById(id)
 		if err != nil {
@@ -428,7 +442,7 @@ func (h AppHandler) CreatePosts(writer http.ResponseWriter, request *http.Reques
 
 	author := posts[0].Author
 
-	resultPosts, err := h.appUseCase.CreatePosts(posts, thread)
+	resultPosts, err := h.appUseCase.CreatePosts(posts, id)
 	if len(resultPosts) == 0 {
 		err = pgx.ErrNoRows
 	}
@@ -458,6 +472,19 @@ func (h AppHandler) CreatePosts(writer http.ResponseWriter, request *http.Reques
 				}
 
 				writer.WriteHeader(http.StatusNotFound)
+				writer.Write(body)
+
+				return
+			}
+
+			if thread.Title == "" {
+				body, err := errorMarshal("conflict")
+				if err != nil {
+					log.Println(err)
+					return
+				}
+
+				writer.WriteHeader(http.StatusConflict)
 				writer.Write(body)
 
 				return

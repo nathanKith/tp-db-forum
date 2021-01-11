@@ -16,7 +16,7 @@ type Repository interface {
 	InsertThread(thread models.Thread) (models.Thread, error)
 	SelectThreadBySlug(slug string) (models.Thread, error)
 	SelectThreadById(id int) (models.Thread, error)
-	InsertPosts(posts []models.Post, forum string, thread int) ([]models.Post, error)
+	InsertPosts(posts []models.Post, thread int) ([]models.Post, error)
 	UpdateThread(thread models.Thread) (models.Thread, error)
 	InsertVote(vote models.Vote) (models.Vote, error)
 	UpdateVote(vote models.Vote) (models.Vote, error)
@@ -28,6 +28,8 @@ type Repository interface {
 	UpdatePost(id int, message string) (models.Post, error)
 	SelectPostsByThread(thread models.Thread, limit, since int, sort string, desc bool) ([]models.Post, error)
 	SelectThreadByForum(forum string) (models.Thread, error)
+
+	SelectThreadIdBySlug(slug string) (int, error)
 }
 
 type UseCase interface {
@@ -42,7 +44,7 @@ type UseCase interface {
 	CreateForumThread(thread models.Thread) (models.Thread, error)
 	CheckThreadBySlug(slug string) (models.Thread, error)
 	CheckThreadById(id int) (models.Thread, error)
-	CreatePosts(posts []models.Post, thread models.Thread) ([]models.Post, error)
+	CreatePosts(posts []models.Post, id int) ([]models.Post, error)
 	EditThread(thread models.Thread) (models.Thread, error)
 	AddVote(vote models.Vote) (models.Vote, error)
 	UpdateVote(vote models.Vote) (models.Vote, error)
@@ -54,4 +56,6 @@ type UseCase interface {
 	EditPost(id int, message string) (models.Post, error)
 	CheckPostsByThread(thread models.Thread, limit, since int, sort string, desc bool) ([]models.Post, error)
 	CheckThreadByForum(forum string) (models.Thread, error)
+
+	CheckThreadIdBySlug(slug string) (int, error)
 }
