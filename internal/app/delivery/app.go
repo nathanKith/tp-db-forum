@@ -781,7 +781,7 @@ func (h AppHandler) ForumUsers(writer http.ResponseWriter, request *http.Request
 		return
 	}
 
-	if len(users) == 0 {
+	if users == nil {
 		_, err := h.appUseCase.CheckForumBySlug(slug)
 		if err != nil {
 			body, err := errorMarshal("can't find something")

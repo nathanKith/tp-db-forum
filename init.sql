@@ -81,34 +81,51 @@ CREATE UNLOGGED TABLE votes
     UNIQUE (nickname, id_thread)
 );
 
+CREATE UNLOGGED TABLE users_forum
+(
+    nickname citext NOT NULL,
+    slug     citext NOT NULL,
+    FOREIGN KEY (nickname) REFERENCES "users" (nickname),
+    FOREIGN KEY (slug) REFERENCES "forum" (slug),
+    UNIQUE (nickname, slug)
+);
+
+CREATE OR REPLACE FUNCTION update_user_forum() RETURNS TRIGGER AS
+$update_users_forum$
+BEGIN
+    INSERT INTO users_forum (nickname, Slug) VALUES (NEW.author, NEW.forum) on conflict do nothing;
+    return NEW;
+end
+$update_users_forum$ LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE FUNCTION insertVotes() RETURNS TRIGGER AS
-$update_vote$
+$update_users_forum$
 BEGIN
     UPDATE thread SET votes=(votes+NEW.voice) WHERE id=NEW.id_thread;
     return NEW;
 end
-$update_vote$ LANGUAGE plpgsql;
+$update_users_forum$ LANGUAGE plpgsql;
 
 
 CREATE OR REPLACE FUNCTION updateVotes() RETURNS TRIGGER AS
-$update_vote$
+$update_users_forum$
 BEGIN
     IF OLD.voice <> NEW.voice THEN
         UPDATE thread SET votes=(votes+NEW.Voice*2) WHERE id=NEW.id_thread;
     END IF;
     return NEW;
 end
-$update_vote$ LANGUAGE plpgsql;
+$update_users_forum$ LANGUAGE plpgsql;
 
 
 CREATE OR REPLACE FUNCTION updateCountOfThreads() RETURNS TRIGGER AS
-$update_forum$
+$update_users_forum$
 BEGIN
     UPDATE forum SET Threads=(Threads+1) WHERE LOWER(slug)=LOWER(NEW.forum);
     return NEW;
 end
-$update_forum$ LANGUAGE plpgsql;
+$update_users_forum$ LANGUAGE plpgsql;
 
 
 CREATE OR REPLACE FUNCTION updatePath() RETURNS TRIGGER AS
@@ -141,7 +158,6 @@ CREATE TRIGGER addThreadInForum
     FOR EACH ROW
 EXECUTE PROCEDURE updateCountOfThreads();
 
-
 CREATE TRIGGER add_voice
     BEFORE INSERT
     ON votes
@@ -160,6 +176,18 @@ CREATE TRIGGER update_path_trigger
     FOR EACH ROW
 EXECUTE PROCEDURE updatePath();
 
+CREATE TRIGGER thread_insert_user_forum
+    AFTER INSERT
+    ON thread
+    FOR EACH ROW
+EXECUTE PROCEDURE update_user_forum();
+
+CREATE TRIGGER post_insert_user_forum
+    AFTER INSERT
+    ON post
+    FOR EACH ROW
+EXECUTE PROCEDURE update_user_forum();
+
 -- CREATE INDEX forum_slug_lower_index ON forum (slug);
 
 -- CREATE INDEX users_nickname_index ON users (nickname);
@@ -170,9 +198,9 @@ CREATE INDEX users_email_nickname_index on users (email, nickname);
 -- CREATE INDEX thread_id_index ON thread (id);
 CREATE INDEX thread_id_forum_index ON thread (forum);
 CREATE INDEX thread_created_index ON thread (created);
-CREATE INDEX thread_author_index on thread (author);
+-- CREATE INDEX thread_author_index on thread (author);
 
-CREATE INDEX post_author_index ON post (author);
+-- CREATE INDEX post_author_index ON post (author);
 CREATE INDEX post_forum_index ON post (forum);
 -- CREATE INDEX post_id_index ON post (id);
 CREATE INDEX post_thread_index ON post (thread);
@@ -182,3 +210,6 @@ CREATE INDEX post_path1_index ON post ((path[1]));
 CREATE INDEX index_posts_thread_parent_path on post (thread, parent, path);
 CREATE INDEX post_first_parent_thread_index ON post ((post.path[1]), thread);
 CREATE INDEX post_first_parent_id_index ON post ((post.path[1]), id);
+
+CREATE INDEX users_forum_forum_index ON users_forum (slug); -- +
+CREATE INDEX users_forum_user_index ON users_forum (nickname);

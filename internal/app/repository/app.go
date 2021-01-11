@@ -341,70 +341,117 @@ func (p *postgresAppRepository) GetServiceStatus() (map[string]int, error) {
 }
 
 func (p *postgresAppRepository) ClearDatabase() error {
-	_, err := p.Conn.Exec(`TRUNCATE users, thread, forum, post, votes;`)
+	_, err := p.Conn.Exec(`TRUNCATE users, thread, forum, post, votes, users_forum;`)
 
 	return err
 }
 
 func (p *postgresAppRepository) SelectUsersByForum(slugForum string, parameters models.QueryParameters) ([]models.User, error) {
-	var rows *pgx.Rows
-	var err error
+	//var rows *pgx.Rows
+	//var err error
+	//
+	//if parameters.Since == "" {
+	//	var query string
+	//
+	//	if parameters.Desc {
+	//		query = `SELECT nickname, fullname, about, email FROM
+	//		  		  ((SELECT thread.author FROM thread WHERE thread.forum=$1) UNION
+	//		  		  (SELECT post.author FROM post WHERE post.forum=$1)) AS union_users
+	//		  		  INNER JOIN users u ON union_users.author=u.nickname
+	//		  		  ORDER BY nickname DESC LIMIT NULLIF($2, 0)`
+	//	} else {
+	//		query = `SELECT nickname, fullname, about, email FROM
+	//		  		  ((SELECT thread.author FROM thread WHERE thread.forum=$1) UNION
+	//		  		  (SELECT post.author FROM post WHERE post.forum=$1)) AS union_users
+	//		  		  INNER JOIN users u ON union_users.author=u.nickname
+	//		  		  ORDER BY nickname ASC LIMIT NULLIF($2, 0)`
+	//	}
+	//
+	//	rows, err = p.Conn.Query(query, slugForum, parameters.Limit)
+	//} else {
+	//	var query string
+	//
+	//	if parameters.Desc {
+	//		query = `SELECT nickname, fullname, about, email FROM
+	//		  		  ((SELECT thread.author FROM thread WHERE thread.forum=$1) UNION
+	//		  		  (SELECT post.author FROM post WHERE post.forum=$1)) AS union_users
+	//		  		  INNER JOIN users u ON union_users.author=u.nickname
+	//		  		  WHERE nickname < $2 ORDER BY union_users.author DESC LIMIT NULLIF($3, 0)`
+	//	} else {
+	//		query = `SELECT nickname, fullname, about, email FROM
+	//		  		  ((SELECT thread.author FROM thread WHERE thread.forum=$1) UNION
+	//		  		  (SELECT post.author FROM post WHERE post.forum=$1)) AS union_users
+	//		  		  INNER JOIN users u ON union_users.author=u.nickname
+	//		  		  WHERE nickname > $2 ORDER BY union_users.author ASC LIMIT NULLIF($3, 0)`
+	//	}
+	//
+	//	rows, err = p.Conn.Query(query, slugForum, parameters.Since, parameters.Limit)
+	//}
+	//
+	//if err != nil {
+	//	return nil, err
+	//}
+	//defer rows.Close()
+	//
+	//var users []models.User
+	//for rows.Next() {
+	//	var user models.User
+	//	err = rows.Scan(&user.Nickname, &user.FullName, &user.About, &user.Email)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//
+	//	users = append(users, user)
+	//}
+	//
+	//return users, nil
 
-	if parameters.Since == "" {
-		var query string
-
-		if parameters.Desc {
-			query = `SELECT nickname, fullname, about, email FROM 
-			  		  ((SELECT thread.author FROM thread WHERE thread.forum=$1) UNION 
-			  		  (SELECT post.author FROM post WHERE post.forum=$1)) AS union_users 
-			  		  INNER JOIN users u ON union_users.author=u.nickname
-			  		  ORDER BY nickname DESC LIMIT NULLIF($2, 0)`
+	var query string
+	if parameters.Desc {
+		if parameters.Since != "" {
+			query = fmt.Sprintf(`SELECT users.about, users.Email, users.FullName, users.Nickname FROM users
+    	inner join users_forum uf on users.Nickname = uf.nickname
+        WHERE uf.slug =$1 AND uf.nickname < '%s'
+        ORDER BY users.Nickname DESC LIMIT NULLIF($2, 0)`, parameters.Since)
 		} else {
-			query = `SELECT nickname, fullname, about, email FROM 
-			  		  ((SELECT thread.author FROM thread WHERE thread.forum=$1) UNION 
-			  		  (SELECT post.author FROM post WHERE post.forum=$1)) AS union_users 
-			  		  INNER JOIN users u ON union_users.author=u.nickname
-			  		  ORDER BY nickname ASC LIMIT NULLIF($2, 0)`
+			query = `SELECT users.about, users.Email, users.FullName, users.Nickname FROM users
+    	inner join users_forum uf on users.Nickname = uf.nickname
+        WHERE uf.slug =$1
+        ORDER BY users.Nickname DESC LIMIT NULLIF($2, 0)`
 		}
-
-		rows, err = p.Conn.Query(query, slugForum, parameters.Limit)
 	} else {
-		var query string
-
-		if parameters.Desc {
-			query = `SELECT nickname, fullname, about, email FROM 
-			  		  ((SELECT thread.author FROM thread WHERE thread.forum=$1) UNION 
-			  		  (SELECT post.author FROM post WHERE post.forum=$1)) AS union_users 
-			  		  INNER JOIN users u ON union_users.author=u.nickname
-			  		  WHERE nickname < $2 ORDER BY union_users.author DESC LIMIT NULLIF($3, 0)`
-		} else {
-			query = `SELECT nickname, fullname, about, email FROM 
-			  		  ((SELECT thread.author FROM thread WHERE thread.forum=$1) UNION 
-			  		  (SELECT post.author FROM post WHERE post.forum=$1)) AS union_users 
-			  		  INNER JOIN users u ON union_users.author=u.nickname
-			  		  WHERE nickname > $2 ORDER BY union_users.author ASC LIMIT NULLIF($3, 0)`
-		}
-
-		rows, err = p.Conn.Query(query, slugForum, parameters.Since, parameters.Limit)
+		query = fmt.Sprintf(`SELECT users.about, users.Email, users.FullName, users.Nickname FROM users
+    	inner join users_forum uf on users.Nickname = uf.nickname
+        WHERE uf.slug =$1 AND uf.nickname > '%s'
+        ORDER BY users.Nickname LIMIT NULLIF($2, 0)`, parameters.Since)
 	}
+	var data []models.User
+	row, err := p.Conn.Query(query, slugForum, parameters.Limit)
 
 	if err != nil {
-		return nil, err
+		return data, nil
 	}
-	defer rows.Close()
 
-	var users []models.User
-	for rows.Next() {
-		var user models.User
-		err = rows.Scan(&user.Nickname, &user.FullName, &user.About, &user.Email)
+	defer func() {
+		if row != nil {
+			row.Close()
+		}
+	}()
+
+	for row.Next() {
+
+		var u models.User
+
+		err = row.Scan(&u.About, &u.Email, &u.FullName, &u.Nickname)
+
 		if err != nil {
-			return nil, err
+			return data, err
 		}
 
-		users = append(users, user)
+		data = append(data, u)
 	}
 
-	return users, nil
+	return data, err
 }
 
 func (p *postgresAppRepository) SelectThreadsByForum(slugForum string, parameters models.QueryParameters) ([]models.Thread, error) {
@@ -755,7 +802,7 @@ func (p *postgresAppRepository) SelectThreadByForum(forum string) (models.Thread
 }
 
 func (p* postgresAppRepository) SelectThreadIdBySlug(slug string) (int, error) {
-	query := `SELECT id FROM thread WHERE LOWER(slug)=LOWER($1)`
+	query := `SELECT id FROM thread WHERE slug=$1`
 
 	var id int
 	err := p.Conn.QueryRow(query, slug).Scan(&id)
