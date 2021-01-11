@@ -16,7 +16,7 @@ type Repository interface {
 	InsertThread(thread models.Thread) (models.Thread, error)
 	SelectThreadBySlug(slug string) (models.Thread, error)
 	SelectThreadById(id int) (models.Thread, error)
-	InsertPosts(posts []models.Post) ([]models.Post, error)
+	InsertPosts(posts []models.Post, forum string, thread int) ([]models.Post, error)
 	UpdateThread(thread models.Thread) (models.Thread, error)
 	InsertVote(vote models.Vote) (models.Vote, error)
 	UpdateVote(vote models.Vote) (models.Vote, error)
@@ -35,7 +35,7 @@ type UseCase interface {
 	CheckUserByEmail(email string) (models.User, error)
 	CheckUserByNickname(nickname string) (models.User, error)
 	HasUser(user models.User) ([]models.User, error)
-	EditUser(oldUser, newUser models.User) (models.User, error)
+	EditUser(newUser models.User) (models.User, error)
 
 	CreateForum(forum models.Forum) (models.Forum, error)
 	CheckForumBySlug(slug string) (models.Forum, error)

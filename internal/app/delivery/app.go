@@ -128,8 +128,35 @@ func (h AppHandler) UserProfile(writer http.ResponseWriter, request *http.Reques
 	}
 	user.Nickname = nickname
 
-	oldUser, err := h.appUseCase.CheckUserByNickname(user.Nickname)
+	//oldUser, err := h.appUseCase.CheckUserByNickname(user.Nickname)
+	//if err != nil {
+	//	body, err := errorMarshal("Can't find user\n")
+	//	if err != nil {
+	//		log.Println(err)
+	//		return
+	//	}
+	//
+	//	writer.WriteHeader(http.StatusNotFound)
+	//	writer.Write(body)
+	//
+	//	return
+	//}
+
+	result, err := h.appUseCase.EditUser(user)
 	if err != nil {
+		if pgErr, ok := err.(pgx.PgError); ok && pgErr.Code == "23505" {
+			body, err := errorMarshal("Conflict email\n")
+			if err != nil {
+				log.Println(err)
+				return
+			}
+
+			writer.WriteHeader(http.StatusConflict)
+			writer.Write(body)
+
+			return
+		}
+
 		body, err := errorMarshal("Can't find user\n")
 		if err != nil {
 			log.Println(err)
@@ -141,21 +168,7 @@ func (h AppHandler) UserProfile(writer http.ResponseWriter, request *http.Reques
 
 		return
 	}
-
-	result, err := h.appUseCase.EditUser(oldUser, user)
 	// check conflict with constraint unique on email
-	if pgErr, ok := err.(pgx.PgError); ok && pgErr.Code == "23505" {
-		body, err := errorMarshal("Conflict email\n")
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		writer.WriteHeader(http.StatusConflict)
-		writer.Write(body)
-
-		return
-	}
 
 	body, err := json.Marshal(result)
 	if err != nil {
@@ -366,8 +379,8 @@ func (h AppHandler) CreatePosts(writer http.ResponseWriter, request *http.Reques
 	slugOrId := strings.TrimSuffix(strings.TrimPrefix(request.URL.Path, "/api/thread/"), "/create")
 
 	var id int
-	id, err = strconv.Atoi(slugOrId)
 	var thread models.Thread
+	id, err = strconv.Atoi(slugOrId)
 	if err != nil {
 		thread, err = h.appUseCase.CheckThreadBySlug(slugOrId)
 		if err != nil {
@@ -382,6 +395,8 @@ func (h AppHandler) CreatePosts(writer http.ResponseWriter, request *http.Reques
 
 			return
 		}
+
+		id = thread.Id
 	} else {
 		thread, err = h.appUseCase.CheckThreadById(id)
 		if err != nil {
@@ -411,10 +426,15 @@ func (h AppHandler) CreatePosts(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 
+	author := posts[0].Author
+
 	resultPosts, err := h.appUseCase.CreatePosts(posts, thread)
+	if len(resultPosts) == 0 {
+		err = pgx.ErrNoRows
+	}
 	if err != nil {
-		if pgErr, ok := err.(pgx.PgError); ok && pgErr.Code == "23503" {
-			if pgErr.Message == models.PostParentError {
+		if pgErr, ok := err.(pgx.PgError); ok {
+			if pgErr.Code == "00409" {
 				body, err := errorMarshal("conflict")
 				if err != nil {
 					log.Println(err)
@@ -426,31 +446,34 @@ func (h AppHandler) CreatePosts(writer http.ResponseWriter, request *http.Reques
 
 				return
 			}
+		}
 
-			body, err := errorMarshal("Haven't this user")
+		if err == pgx.ErrNoRows {
+			_, err := h.appUseCase.CheckUserByNickname(author)
+			if err == pgx.ErrNoRows {
+				body, err := errorMarshal("Haven't this user")
+				if err != nil {
+					log.Println(err)
+					return
+				}
+
+				writer.WriteHeader(http.StatusNotFound)
+				writer.Write(body)
+
+				return
+			}
+
+			body, err := errorMarshal("conflict")
 			if err != nil {
 				log.Println(err)
 				return
 			}
 
-			writer.WriteHeader(http.StatusNotFound)
+			writer.WriteHeader(http.StatusConflict)
 			writer.Write(body)
 
 			return
 		}
-	}
-
-	if resultPosts == nil {
-		body, err := errorMarshal("conflict")
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		writer.WriteHeader(http.StatusConflict)
-		writer.Write(body)
-
-		return
 	}
 
 	body, err := json.Marshal(resultPosts)

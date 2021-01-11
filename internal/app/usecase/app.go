@@ -44,19 +44,7 @@ func (a appUseCase) HasUser(user models.User) ([]models.User, error) {
 	return users, err
 }
 
-func (a appUseCase) EditUser(oldUser, newUser models.User) (models.User, error) {
-	if newUser.Email == "" {
-		newUser.Email = oldUser.Email
-	}
-
-	if newUser.About == "" {
-		newUser.About = oldUser.About
-	}
-
-	if newUser.FullName == "" {
-		newUser.FullName = oldUser.FullName
-	}
-
+func (a appUseCase) EditUser(newUser models.User) (models.User, error) {
 	u, err := a.appRepository.UpdateUser(newUser)
 
 	return u, err
@@ -107,12 +95,7 @@ func (a appUseCase) CheckThreadById(id int) (models.Thread, error) {
 }
 
 func (a appUseCase) CreatePosts(posts []models.Post, thread models.Thread) ([]models.Post, error) {
-	for i, _ := range posts {
-		posts[i].Thread = thread.Id
-		posts[i].Forum = thread.Forum
-	}
-
-	result, err := a.appRepository.InsertPosts(posts)
+	result, err := a.appRepository.InsertPosts(posts, thread.Forum, thread.Id)
 
 	return result, err
 }
