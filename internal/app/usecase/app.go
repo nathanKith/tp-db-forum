@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"github.com/google/uuid"
-	"log"
 	"tp-db-forum/internal/app"
 	"tp-db-forum/internal/app/models"
 )
@@ -53,7 +52,6 @@ func (a appUseCase) EditUser(newUser models.User) (models.User, error) {
 func (a appUseCase) CreateForum(forum models.Forum) (models.Forum, error) {
 	f, err := a.appRepository.InsertForum(forum)
 	if err != nil {
-		log.Println(err)
 	}
 
 	return f, err
@@ -62,7 +60,6 @@ func (a appUseCase) CreateForum(forum models.Forum) (models.Forum, error) {
 func (a appUseCase) CheckForumBySlug(slug string) (models.Forum, error) {
 	forum, err := a.appRepository.SelectForumBySlug(slug)
 	if err != nil {
-		log.Println(err)
 	}
 
 	return forum, err
@@ -72,7 +69,6 @@ func (a appUseCase) CreateForumThread(thread models.Thread) (models.Thread, erro
 	if thread.Slug == "" {
 		u, err := uuid.NewRandom()
 		if err != nil {
-			log.Println(err)
 			panic("AAAAAAAAAAAAAAAAA")
 		}
 		thread.Slug = u.String()

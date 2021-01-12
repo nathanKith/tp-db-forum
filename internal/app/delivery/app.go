@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -58,7 +57,6 @@ func (h AppHandler) CreateUser(writer http.ResponseWriter, request *http.Request
 	var user models.User
 	err := json.NewDecoder(request.Body).Decode(&user)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 	user.Nickname = nickname
@@ -68,7 +66,6 @@ func (h AppHandler) CreateUser(writer http.ResponseWriter, request *http.Request
 		if users, err := h.appUseCase.HasUser(user); err == nil {
 			body, err := json.Marshal(users)
 			if err != nil {
-				log.Println(err)
 				return
 			}
 
@@ -83,7 +80,6 @@ func (h AppHandler) CreateUser(writer http.ResponseWriter, request *http.Request
 
 	body, err := json.Marshal(user)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 
@@ -99,7 +95,6 @@ func (h AppHandler) UserProfile(writer http.ResponseWriter, request *http.Reques
 		if err != nil {
 			body, err := errorMarshal("Can't find user\n")
 			if err != nil {
-				log.Println(err)
 				return
 			}
 
@@ -110,7 +105,6 @@ func (h AppHandler) UserProfile(writer http.ResponseWriter, request *http.Reques
 		}
 		body, err := json.Marshal(user)
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -123,31 +117,15 @@ func (h AppHandler) UserProfile(writer http.ResponseWriter, request *http.Reques
 	var user models.User
 	err := json.NewDecoder(request.Body).Decode(&user)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 	user.Nickname = nickname
-
-	//oldUser, err := h.appUseCase.CheckUserByNickname(user.Nickname)
-	//if err != nil {
-	//	body, err := errorMarshal("Can't find user\n")
-	//	if err != nil {
-	//		log.Println(err)
-	//		return
-	//	}
-	//
-	//	writer.WriteHeader(http.StatusNotFound)
-	//	writer.Write(body)
-	//
-	//	return
-	//}
 
 	result, err := h.appUseCase.EditUser(user)
 	if err != nil {
 		if pgErr, ok := err.(pgx.PgError); ok && pgErr.Code == "23505" {
 			body, err := errorMarshal("Conflict email\n")
 			if err != nil {
-				log.Println(err)
 				return
 			}
 
@@ -159,7 +137,6 @@ func (h AppHandler) UserProfile(writer http.ResponseWriter, request *http.Reques
 
 		body, err := errorMarshal("Can't find user\n")
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -172,7 +149,6 @@ func (h AppHandler) UserProfile(writer http.ResponseWriter, request *http.Reques
 
 	body, err := json.Marshal(result)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 
@@ -184,7 +160,6 @@ func (h AppHandler) CreateForum(writer http.ResponseWriter, request *http.Reques
 	var forum models.Forum
 	err := json.NewDecoder(request.Body).Decode(&forum)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 
@@ -192,7 +167,6 @@ func (h AppHandler) CreateForum(writer http.ResponseWriter, request *http.Reques
 	if err != nil {
 		body, err := errorMarshal("Can't find user")
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -210,13 +184,11 @@ func (h AppHandler) CreateForum(writer http.ResponseWriter, request *http.Reques
 		case "23505":
 			forumSlug, err := h.appUseCase.CheckForumBySlug(forum.Slug)
 			if err != nil {
-				log.Println(err)
 				return
 			}
 
 			body, err := json.Marshal(forumSlug)
 			if err != nil {
-				log.Println(err)
 				return
 			}
 
@@ -225,7 +197,6 @@ func (h AppHandler) CreateForum(writer http.ResponseWriter, request *http.Reques
 		case "23503":
 			body, err := errorMarshal("Can't find user")
 			if err != nil {
-				log.Println(err)
 				return
 			}
 
@@ -238,7 +209,6 @@ func (h AppHandler) CreateForum(writer http.ResponseWriter, request *http.Reques
 
 	body, err := json.Marshal(f)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 
@@ -253,7 +223,6 @@ func (h AppHandler) ForumDetails(writer http.ResponseWriter, request *http.Reque
 	if err != nil {
 		body, err := errorMarshal("Can't find forum")
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -265,7 +234,6 @@ func (h AppHandler) ForumDetails(writer http.ResponseWriter, request *http.Reque
 
 	body, err := json.Marshal(forum)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 
@@ -279,7 +247,6 @@ func (h AppHandler) CreateThread(writer http.ResponseWriter, request *http.Reque
 	thread := models.Thread{Forum: slug}
 	err := json.NewDecoder(request.Body).Decode(&thread)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 
@@ -289,14 +256,11 @@ func (h AppHandler) CreateThread(writer http.ResponseWriter, request *http.Reque
 	if pgErr, ok := err.(pgx.PgError); ok && pgErr.Code == "23505" {
 		oldThread, err := h.appUseCase.CheckThreadBySlug(thread.Slug)
 		if err != nil {
-			log.Println("ХАХАХАХАХАХАХАХ")
-			log.Println(err)
 			return
 		}
 
 		body, err := json.Marshal(oldThread)
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -309,7 +273,6 @@ func (h AppHandler) CreateThread(writer http.ResponseWriter, request *http.Reque
 	if err != nil {
 		body, err := errorMarshal("Can't find forum or user\n")
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -323,7 +286,6 @@ func (h AppHandler) CreateThread(writer http.ResponseWriter, request *http.Reque
 	if err != nil {
 		body, err := errorMarshal("Can't find forum or user\n")
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -346,7 +308,6 @@ func (h AppHandler) CreateThread(writer http.ResponseWriter, request *http.Reque
 
 		body, err := json.Marshal(threadWithoutSlug)
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -360,7 +321,6 @@ func (h AppHandler) CreateThread(writer http.ResponseWriter, request *http.Reque
 
 	body, err := json.Marshal(newThread)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 
@@ -372,7 +332,6 @@ func (h AppHandler) CreatePosts(writer http.ResponseWriter, request *http.Reques
 	var posts []models.Post
 	err := json.NewDecoder(request.Body).Decode(&posts)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 
@@ -386,7 +345,6 @@ func (h AppHandler) CreatePosts(writer http.ResponseWriter, request *http.Reques
 		if err != nil {
 			body, err := errorMarshal("Haven't this thread")
 			if err != nil {
-				log.Println(err)
 				return
 			}
 
@@ -400,7 +358,6 @@ func (h AppHandler) CreatePosts(writer http.ResponseWriter, request *http.Reques
 		if err != nil {
 			body, err := errorMarshal("Haven't this thread")
 			if err != nil {
-				log.Println(err)
 				return
 			}
 
@@ -414,7 +371,6 @@ func (h AppHandler) CreatePosts(writer http.ResponseWriter, request *http.Reques
 	if len(posts) == 0 {
 		body, err := json.Marshal(posts)
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -435,7 +391,6 @@ func (h AppHandler) CreatePosts(writer http.ResponseWriter, request *http.Reques
 			if pgErr.Code == "00409" {
 				body, err := errorMarshal("conflict")
 				if err != nil {
-					log.Println(err)
 					return
 				}
 
@@ -451,7 +406,6 @@ func (h AppHandler) CreatePosts(writer http.ResponseWriter, request *http.Reques
 			if err == pgx.ErrNoRows {
 				body, err := errorMarshal("Haven't this user")
 				if err != nil {
-					log.Println(err)
 					return
 				}
 
@@ -464,7 +418,6 @@ func (h AppHandler) CreatePosts(writer http.ResponseWriter, request *http.Reques
 			if thread.Title == "" {
 				body, err := errorMarshal("conflict")
 				if err != nil {
-					log.Println(err)
 					return
 				}
 
@@ -476,7 +429,6 @@ func (h AppHandler) CreatePosts(writer http.ResponseWriter, request *http.Reques
 
 			body, err := errorMarshal("conflict")
 			if err != nil {
-				log.Println(err)
 				return
 			}
 
@@ -489,7 +441,6 @@ func (h AppHandler) CreatePosts(writer http.ResponseWriter, request *http.Reques
 
 	body, err := json.Marshal(resultPosts)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 
@@ -512,7 +463,6 @@ func (h AppHandler) ThreadDetails(writer http.ResponseWriter, request *http.Requ
 		if err != nil {
 			body, err := errorMarshal("can't find thread")
 			if err != nil {
-				log.Println(err)
 				return
 			}
 
@@ -527,7 +477,6 @@ func (h AppHandler) ThreadDetails(writer http.ResponseWriter, request *http.Requ
 
 			body, err := json.Marshal(result)
 			if err != nil {
-				log.Println(err)
 				return
 			}
 
@@ -539,7 +488,6 @@ func (h AppHandler) ThreadDetails(writer http.ResponseWriter, request *http.Requ
 
 		body, err := json.Marshal(thread)
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -551,7 +499,6 @@ func (h AppHandler) ThreadDetails(writer http.ResponseWriter, request *http.Requ
 
 	err := json.NewDecoder(request.Body).Decode(&thread)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 
@@ -566,7 +513,6 @@ func (h AppHandler) ThreadDetails(writer http.ResponseWriter, request *http.Requ
 	if err != nil {
 		body, err := errorMarshal("can't find thread")
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -581,7 +527,6 @@ func (h AppHandler) ThreadDetails(writer http.ResponseWriter, request *http.Requ
 
 		body, err := json.Marshal(result)
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -593,7 +538,6 @@ func (h AppHandler) ThreadDetails(writer http.ResponseWriter, request *http.Requ
 
 	body, err := json.Marshal(newThread)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 
@@ -607,7 +551,6 @@ func (h AppHandler) VoteThread(writer http.ResponseWriter, request *http.Request
 	var vote models.Vote
 	err := json.NewDecoder(request.Body).Decode(&vote)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 
@@ -620,7 +563,6 @@ func (h AppHandler) VoteThread(writer http.ResponseWriter, request *http.Request
 	if err != nil {
 		body, err := errorMarshal("can't find thread")
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -643,7 +585,6 @@ func (h AppHandler) VoteThread(writer http.ResponseWriter, request *http.Request
 			if err != nil {
 				body, err := errorMarshal("can't find thread or this")
 				if err != nil {
-					log.Println(err)
 					return
 				}
 
@@ -655,7 +596,6 @@ func (h AppHandler) VoteThread(writer http.ResponseWriter, request *http.Request
 		} else {
 			body, err := errorMarshal("can't find thread this")
 			if err != nil {
-				log.Println(err)
 				return
 			}
 
@@ -673,7 +613,6 @@ func (h AppHandler) VoteThread(writer http.ResponseWriter, request *http.Request
 
 		body, err := json.Marshal(result)
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -685,7 +624,6 @@ func (h AppHandler) VoteThread(writer http.ResponseWriter, request *http.Request
 
 	body, err := json.Marshal(thread)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 
@@ -698,7 +636,6 @@ func (h AppHandler) StatusHandler(writer http.ResponseWriter, request *http.Requ
 	if err != nil {
 		body, err := errorMarshal("vse ploho")
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -708,7 +645,6 @@ func (h AppHandler) StatusHandler(writer http.ResponseWriter, request *http.Requ
 
 	body, err := json.Marshal(info)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 
@@ -721,7 +657,6 @@ func (h AppHandler) ClearHandler(writer http.ResponseWriter, request *http.Reque
 	if err != nil {
 		body, err := errorMarshal("ochen ploho")
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -755,7 +690,6 @@ func (h AppHandler) ForumUsers(writer http.ResponseWriter, request *http.Request
 	if err != nil {
 		body, err := errorMarshal("can't find something")
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -770,7 +704,6 @@ func (h AppHandler) ForumUsers(writer http.ResponseWriter, request *http.Request
 		if err != nil {
 			body, err := errorMarshal("can't find something")
 			if err != nil {
-				log.Println(err)
 				return
 			}
 
@@ -781,7 +714,6 @@ func (h AppHandler) ForumUsers(writer http.ResponseWriter, request *http.Request
 		}
 		body, err := json.Marshal([]int{})
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -793,7 +725,6 @@ func (h AppHandler) ForumUsers(writer http.ResponseWriter, request *http.Request
 
 	body, err := json.Marshal(users)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 
@@ -826,7 +757,6 @@ func (h AppHandler) ForumThreads(writer http.ResponseWriter, request *http.Reque
 		if err == nil {
 			body, err := json.Marshal([]int{})
 			if err != nil {
-				log.Println(err)
 				return
 			}
 
@@ -838,7 +768,6 @@ func (h AppHandler) ForumThreads(writer http.ResponseWriter, request *http.Reque
 
 		body, err := errorMarshal("can't find something bad")
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -861,7 +790,6 @@ func (h AppHandler) ForumThreads(writer http.ResponseWriter, request *http.Reque
 
 	body, err := json.Marshal(result)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 
@@ -872,7 +800,6 @@ func (h AppHandler) ForumThreads(writer http.ResponseWriter, request *http.Reque
 func (h AppHandler) PostDetails(writer http.ResponseWriter, request *http.Request) {
 	id, err := strconv.Atoi(strings.TrimSuffix(strings.TrimPrefix(request.URL.Path, "/api/post/"), "/details"))
 	if err != nil {
-		log.Println(err)
 		return
 	}
 
@@ -883,7 +810,6 @@ func (h AppHandler) PostDetails(writer http.ResponseWriter, request *http.Reques
 		if err != nil {
 			body, err := errorMarshal("can't find something")
 			if err != nil {
-				log.Println(err)
 				return
 			}
 
@@ -895,7 +821,6 @@ func (h AppHandler) PostDetails(writer http.ResponseWriter, request *http.Reques
 
 		body, err := json.Marshal(data)
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -908,7 +833,6 @@ func (h AppHandler) PostDetails(writer http.ResponseWriter, request *http.Reques
 	var post models.Post
 	err = json.NewDecoder(request.Body).Decode(&post)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 
@@ -916,7 +840,6 @@ func (h AppHandler) PostDetails(writer http.ResponseWriter, request *http.Reques
 	if err != nil {
 		body, err := errorMarshal("can't find something")
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -928,7 +851,6 @@ func (h AppHandler) PostDetails(writer http.ResponseWriter, request *http.Reques
 
 	body, err := json.Marshal(post)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 
@@ -967,7 +889,6 @@ func (h AppHandler) ThreadPosts(writer http.ResponseWriter, request *http.Reques
 	if err != nil {
 		body, err := errorMarshal("can't find something this")
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -983,7 +904,6 @@ func (h AppHandler) ThreadPosts(writer http.ResponseWriter, request *http.Reques
 			if err == pgx.ErrNoRows {
 				body, err := errorMarshal("can't find something")
 				if err != nil {
-					log.Println(err)
 					return
 				}
 
@@ -997,7 +917,6 @@ func (h AppHandler) ThreadPosts(writer http.ResponseWriter, request *http.Reques
 			if err == pgx.ErrNoRows {
 				body, err := errorMarshal("can't find something")
 				if err != nil {
-					log.Println(err)
 					return
 				}
 
@@ -1010,7 +929,6 @@ func (h AppHandler) ThreadPosts(writer http.ResponseWriter, request *http.Reques
 
 		body, err := json.Marshal([]int{})
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
@@ -1022,7 +940,6 @@ func (h AppHandler) ThreadPosts(writer http.ResponseWriter, request *http.Reques
 
 	body, err := json.Marshal(posts)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 

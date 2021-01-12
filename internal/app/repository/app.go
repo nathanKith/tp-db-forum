@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/go-openapi/strfmt"
 	"github.com/jackc/pgx"
-	"log"
 	"strings"
 	"time"
 	repo "tp-db-forum/internal/app"
@@ -34,7 +33,6 @@ func (p *postgresAppRepository) SelectUserByNickname(nickname string) (models.Us
 	var user models.User
 	err := row.Scan(&user.Nickname, &user.FullName, &user.About, &user.Email)
 	if err != nil {
-		log.Println(err)
 		return models.User{}, err
 	}
 
