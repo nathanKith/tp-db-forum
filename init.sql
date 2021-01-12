@@ -111,7 +111,7 @@ $update_users_forum$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION updateCountOfThreads() RETURNS TRIGGER AS
 $update_users_forum$
 BEGIN
-    UPDATE forum SET Threads=(Threads+1) WHERE LOWER(slug)=LOWER(NEW.forum);
+    UPDATE forum SET Threads=(Threads+1) WHERE slug=NEW.forum;
     return NEW;
 end
 $update_users_forum$ LANGUAGE plpgsql;
@@ -134,7 +134,7 @@ BEGIN
 
         NEW.path := NEW.path || parentPath || new.id;
     end if;
-    UPDATE forum SET Posts=Posts + 1 WHERE lower(forum.slug) = lower(new.forum);
+    UPDATE forum SET Posts=Posts + 1 WHERE forum.slug = new.forum;
     RETURN new;
 end
 $update_path$ LANGUAGE plpgsql;
@@ -178,19 +178,31 @@ CREATE TRIGGER post_insert_user_forum
 EXECUTE PROCEDURE update_user_forum();
 
 
-CREATE INDEX users_email_nickname_index on users (email, nickname);
-
--- CREATE INDEX thread_id_forum_index ON thread (forum);
-CREATE INDEX thread_created_index ON thread (created);
-
--- CREATE INDEX post_forum_index ON post (forum);
--- CREATE INDEX post_thread_index ON post (thread);
-CREATE INDEX index_posts_thread_path on post (thread, path);
-CREATE INDEX post_path_index ON post (path);
-CREATE INDEX post_path1_index ON post ((path[1]));
-CREATE INDEX index_posts_thread_parent_path on post (thread, parent, path);
 CREATE INDEX post_first_parent_thread_index ON post ((post.path[1]), thread);
 CREATE INDEX post_first_parent_id_index ON post ((post.path[1]), id);
+CREATE INDEX post_first_parent_index ON post ((post.path[1]));
+CREATE INDEX post_path_index ON post ((post.path));
+CREATE INDEX post_thread_index ON post (thread); -- -
+CREATE INDEX post_thread_id_index ON post (thread, id); -- +
 
--- CREATE INDEX users_forum_forum_index ON users_forum (slug);
-CREATE INDEX users_forum_user_index ON users_forum (slug, nickname);
+CREATE INDEX forum_slug_lower_index ON forum (slug); -- +
+
+CREATE INDEX users_nickname_index ON users (nickname);
+CREATE INDEX users_email_index ON users (Email);
+
+CREATE INDEX users_forum_forum_user_index ON users_forum (slug, nickname);
+CREATE INDEX users_forum_user_index ON users_forum (nickname);
+
+CREATE INDEX thread_slug_index ON thread (slug);
+CREATE INDEX thread_slug_id_index ON thread (slug, id);
+CREATE INDEX thread_forum_lower_index ON thread (forum); -- +
+CREATE INDEX thread_id_forum_index ON thread (id, forum);
+CREATE INDEX thread_created_index ON thread (created);
+
+CREATE INDEX vote_nickname ON votes (nickname, id_thread, voice); -- +
+
+-- NEW INDEXES
+CREATE INDEX post_path_id_index ON post (id, (post.path));
+CREATE INDEX post_thread_path_id_index ON post (thread, (post.parent), id);
+
+CREATE INDEX users_forum_forum_index ON users_forum ((users_forum.Slug)); -- +

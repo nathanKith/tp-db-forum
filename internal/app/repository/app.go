@@ -208,12 +208,7 @@ func (p *postgresAppRepository) InsertPosts(posts []models.Post, thread int) ([]
 
 		insert += value
 
-		values = append(values, post.Author)
-		values = append(values, timeCreated)
-		values = append(values, forum)
-		values = append(values, post.Message)
-		values = append(values, post.Parent)
-		values = append(values, thread)
+		values = append(values, post.Author, timeCreated, forum, post.Message, post.Parent, thread)
 	}
 
 	insert = strings.TrimSuffix(insert, ",")
@@ -352,65 +347,6 @@ func (p *postgresAppRepository) ClearDatabase() error {
 }
 
 func (p *postgresAppRepository) SelectUsersByForum(slugForum string, parameters models.QueryParameters) ([]models.User, error) {
-	//var rows *pgx.Rows
-	//var err error
-	//
-	//if parameters.Since == "" {
-	//	var query string
-	//
-	//	if parameters.Desc {
-	//		query = `SELECT nickname, fullname, about, email FROM
-	//		  		  ((SELECT thread.author FROM thread WHERE thread.forum=$1) UNION
-	//		  		  (SELECT post.author FROM post WHERE post.forum=$1)) AS union_users
-	//		  		  INNER JOIN users u ON union_users.author=u.nickname
-	//		  		  ORDER BY nickname DESC LIMIT NULLIF($2, 0)`
-	//	} else {
-	//		query = `SELECT nickname, fullname, about, email FROM
-	//		  		  ((SELECT thread.author FROM thread WHERE thread.forum=$1) UNION
-	//		  		  (SELECT post.author FROM post WHERE post.forum=$1)) AS union_users
-	//		  		  INNER JOIN users u ON union_users.author=u.nickname
-	//		  		  ORDER BY nickname ASC LIMIT NULLIF($2, 0)`
-	//	}
-	//
-	//	rows, err = p.Conn.Query(query, slugForum, parameters.Limit)
-	//} else {
-	//	var query string
-	//
-	//	if parameters.Desc {
-	//		query = `SELECT nickname, fullname, about, email FROM
-	//		  		  ((SELECT thread.author FROM thread WHERE thread.forum=$1) UNION
-	//		  		  (SELECT post.author FROM post WHERE post.forum=$1)) AS union_users
-	//		  		  INNER JOIN users u ON union_users.author=u.nickname
-	//		  		  WHERE nickname < $2 ORDER BY union_users.author DESC LIMIT NULLIF($3, 0)`
-	//	} else {
-	//		query = `SELECT nickname, fullname, about, email FROM
-	//		  		  ((SELECT thread.author FROM thread WHERE thread.forum=$1) UNION
-	//		  		  (SELECT post.author FROM post WHERE post.forum=$1)) AS union_users
-	//		  		  INNER JOIN users u ON union_users.author=u.nickname
-	//		  		  WHERE nickname > $2 ORDER BY union_users.author ASC LIMIT NULLIF($3, 0)`
-	//	}
-	//
-	//	rows, err = p.Conn.Query(query, slugForum, parameters.Since, parameters.Limit)
-	//}
-	//
-	//if err != nil {
-	//	return nil, err
-	//}
-	//defer rows.Close()
-	//
-	//var users []models.User
-	//for rows.Next() {
-	//	var user models.User
-	//	err = rows.Scan(&user.Nickname, &user.FullName, &user.About, &user.Email)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//
-	//	users = append(users, user)
-	//}
-	//
-	//return users, nil
-
 	var query string
 	if parameters.Desc {
 		if parameters.Since != "" {
