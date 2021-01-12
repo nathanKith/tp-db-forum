@@ -179,19 +179,19 @@ CREATE TRIGGER post_insert_user_forum
 EXECUTE PROCEDURE update_user_forum();
 
 
--- CREATE INDEX users_email_nickname_index on users (email, nickname);
---
--- -- CREATE INDEX thread_id_forum_index ON thread (forum);
--- CREATE INDEX thread_created_index ON thread (created);
---
--- -- CREATE INDEX post_forum_index ON post (forum);
--- -- CREATE INDEX post_thread_index ON post (thread);
--- CREATE INDEX index_posts_thread_path on post (thread, path);
--- CREATE INDEX post_path_index ON post (path);
--- CREATE INDEX post_path1_index ON post ((path[1]));
--- CREATE INDEX index_posts_thread_parent_path on post (thread, parent, path);
--- CREATE INDEX post_first_parent_thread_index ON post ((post.path[1]), thread);
--- CREATE INDEX post_first_parent_id_index ON post ((post.path[1]), id);
---
--- -- CREATE INDEX users_forum_forum_index ON users_forum (slug);
--- CREATE INDEX users_forum_user_index ON users_forum (slug, nickname);
+CREATE INDEX users_email_nickname_index on users (email, nickname);
+
+-- CREATE INDEX thread_id_forum_index ON thread (forum);
+CREATE INDEX thread_created_index ON thread (created);
+
+-- CREATE INDEX post_forum_index ON post (forum);
+-- CREATE INDEX post_thread_index ON post (thread);
+CREATE INDEX index_posts_thread_path on post (thread, path);
+CREATE INDEX post_path_index ON post (path);
+CREATE INDEX post_path1_index ON post ((path[1]));
+CREATE INDEX index_posts_thread_parent_path on post (thread, parent, path);
+CREATE INDEX post_first_parent_thread_index ON post ((post.path[1]), thread);
+CREATE INDEX post_first_parent_id_index ON post ((post.path[1]), id);
+
+-- CREATE INDEX users_forum_forum_index ON users_forum (slug);
+CREATE INDEX users_forum_user_index ON users_forum (slug, nickname);
