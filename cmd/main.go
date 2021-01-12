@@ -41,7 +41,7 @@ func main() {
 
 	poolConfig := pgx.ConnPoolConfig{
 		ConnConfig:     pgxConnConfig,
-		MaxConnections: 10,
+		MaxConnections: 100,
 		AfterConnect:   nil,
 		AcquireTimeout: 0,
 	}

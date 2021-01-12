@@ -16,8 +16,8 @@ require (
 	github.com/lib/pq v1.9.0 // indirect
 	github.com/mitchellh/mapstructure v1.4.0 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
-	github.com/valyala/fasthttp v1.19.0 // indirect
+	github.com/valyala/fasthttp v1.19.0
 	go.mongodb.org/mongo-driver v1.4.4 // indirect
-	golang.org/x/crypto v0.0.0-20201203163018-be400aefbc4c // indirect
-	golang.org/x/text v0.3.4 // indirect
+	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad // indirect
+	golang.org/x/text v0.3.5 // indirect
 )

@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS citext;
+
 ALTER SYSTEM SET
     checkpoint_completion_target = '0.9';
 ALTER SYSTEM SET
@@ -8,9 +10,6 @@ ALTER SYSTEM SET
     random_page_cost = '1.1';
 ALTER SYSTEM SET
     effective_io_concurrency = '200';
-
-
-CREATE EXTENSION IF NOT EXISTS citext;
 
 CREATE UNLOGGED TABLE users (
     nickname CITEXT PRIMARY KEY,

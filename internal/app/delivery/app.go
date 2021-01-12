@@ -395,22 +395,6 @@ func (h AppHandler) CreatePosts(writer http.ResponseWriter, request *http.Reques
 
 			return
 		}
-
-		//thread, err = h.appUseCase.CheckThreadBySlug(slugOrId)
-		//if err != nil {
-		//	body, err := errorMarshal("Haven't this thread")
-		//	if err != nil {
-		//		log.Println(err)
-		//		return
-		//	}
-		//
-		//	writer.WriteHeader(http.StatusNotFound)
-		//	writer.Write(body)
-		//
-		//	return
-		//}
-		//
-		//id = thread.Id
 	} else {
 		thread, err = h.appUseCase.CheckThreadById(id)
 		if err != nil {
