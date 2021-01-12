@@ -1,15 +1,15 @@
 CREATE EXTENSION IF NOT EXISTS citext;
-
-ALTER SYSTEM SET
-    checkpoint_completion_target = '0.9';
-ALTER SYSTEM SET
-    wal_buffers = '6912kB';
-ALTER SYSTEM SET
-    default_statistics_target = '100';
-ALTER SYSTEM SET
-    random_page_cost = '1.1';
-ALTER SYSTEM SET
-    effective_io_concurrency = '200';
+--
+-- ALTER SYSTEM SET
+--     checkpoint_completion_target = '0.9';
+-- ALTER SYSTEM SET
+--     wal_buffers = '6912kB';
+-- ALTER SYSTEM SET
+--     default_statistics_target = '100';
+-- ALTER SYSTEM SET
+--     random_page_cost = '1.1';
+-- ALTER SYSTEM SET
+--     effective_io_concurrency = '200';
 
 CREATE UNLOGGED TABLE users (
     nickname CITEXT PRIMARY KEY,
@@ -139,7 +139,7 @@ BEGIN
 end
 $update_path$ LANGUAGE plpgsql;
 
-
+CREATE INDEX path_ ON post (path);
 
 CREATE TRIGGER addThreadInForum
     BEFORE INSERT
@@ -194,22 +194,22 @@ CREATE INDEX post_thread_id_path_index_desc ON post (path DESC, id ASC, thread);
 
 CREATE INDEX users_nickname_email_index ON users (nickname, email);
 CREATE UNIQUE INDEX users_nickname_all_index ON users (nickname ASC, email, fullname, about);
-CLUSTER users using users_nickname_all_index;
+--CLUSTER users using users_nickname_all_index;
 CREATE UNIQUE INDEX users_nickname_all_index_desc ON users (nickname DESC, email, fullname, about);
 
-CREATE INDEX users_forum_user_index ON users_forum (nickname);
-CREATE INDEX users_forum_slug_index ON users_forum (slug);
+CREATE INDEX users_forum_user_index ON users_forum using hash (nickname);
+CREATE INDEX users_forum_slug_index ON users_forum using hash (slug);
 
 CREATE INDEX thread_slug_id_index ON thread (id, slug);
 CREATE INDEX thread_id_forum_index ON thread (id, forum);
-CREATE INDEX thread_forum_lower_index ON thread (forum);
+CREATE INDEX thread_forum_lower_index ON thread using hash (forum);
 CREATE INDEX thread_created_index ON thread (created);
 CREATE INDEX thread_forum_created_order_index_DESC ON thread (forum, created ASC);
 CREATE INDEX thread_forum_created_order_index ON thread (forum, created DESC);
 
 CREATE INDEX vote_nickname ON votes (nickname, id_thread, voice);
 
-CREATE INDEX forum_fk_index ON forum ("user");
-CREATE INDEX thread_fk_index ON thread (author);
-CREATE INDEX post_fk_forum_index ON post (forum);
+CREATE INDEX forum_fk_index ON  forum using hash ("user");
+CREATE INDEX thread_fk_index ON thread using hash (author);
+CREATE INDEX post_fk_forum_index ON post using hash (forum);
 CREATE INDEX post_fk_parent_index ON post (parent);
