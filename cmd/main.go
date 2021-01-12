@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx"
+	"github.com/valyala/fasthttp"
+	"github.com/valyala/fasthttp/fasthttpadaptor"
 	"log"
 	"net/http"
 	"tp-db-forum/configs"
@@ -55,5 +57,5 @@ func main() {
 
 	router.Use(applicationJSONMiddleware(router))
 
-	log.Fatal(http.ListenAndServe(":5000", router))
+	log.Fatal(fasthttp.ListenAndServe(":5000", fasthttpadaptor.NewFastHTTPHandler(router)))
 }
