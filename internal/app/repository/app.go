@@ -59,6 +59,8 @@ func (p *postgresAppRepository) SelectUsersByNickAndEmail(nickname, email string
 		return nil, err
 	}
 
+	defer rows.Close()
+
 	var users []models.User
 	for rows.Next() {
 		var user models.User
@@ -318,9 +320,12 @@ func (p *postgresAppRepository) GetServiceStatus() (map[string]int, error) {
 		(SELECT COUNT(*) FROM thread) as threadCount, 
 		(SELECT COUNT(*) FROM users) as usersCount;`,
 	)
+
 	if err != nil {
 		return nil, err
 	}
+
+	defer info.Close()
 
 	if info.Next() {
 		forumCount, postCount, threadCount, usersCount := 0, 0, 0, 0
@@ -432,11 +437,7 @@ func (p *postgresAppRepository) SelectUsersByForum(slugForum string, parameters 
 		return data, nil
 	}
 
-	defer func() {
-		if row != nil {
-			row.Close()
-		}
-	}()
+	defer row.Close()
 
 	for row.Next() {
 
