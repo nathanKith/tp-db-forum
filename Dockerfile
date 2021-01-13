@@ -20,6 +20,8 @@ RUN /etc/init.d/postgresql start &&\
     createdb -E UTF8 -O docker docker &&\
     /etc/init.d/postgresql stop
 
+RUN echo "host all  all    0.0.0.0/0  md5" >> /etc/postgresql/$PGVER/main/pg_hba.conf
+
 RUN echo "listen_addresses='*'\nsynchronous_commit = off\nfsync = off\n" >> /etc/postgresql/$PGVER/main/postgresql.conf
 
 EXPOSE 5432

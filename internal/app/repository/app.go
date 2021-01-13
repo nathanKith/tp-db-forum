@@ -503,15 +503,24 @@ func (p *postgresAppRepository) UpdatePost(id int, message string) (models.Post,
 	return post, err
 }
 
+func (p *postgresAppRepository) selectThreadIdBySlug(slug string) (int, error) {
+	row := p.Conn.QueryRow(`SELECT id FROM thread WHERE slug=$1 LIMIT 1;`, slug)
+
+	var id int
+	err := row.Scan(&id)
+
+	return id, err
+}
+
 func (p *postgresAppRepository) SelectPostsByThread(thread models.Thread, limit, since int, sort string, desc bool) ([]models.Post, error) {
 	var threadId int
 	if thread.Id == 0 {
-		thr, err := p.SelectThreadBySlug(thread.Slug)
+		thr, err := p.SelectThreadIdBySlug(thread.Slug)
 		if err != nil {
 			return nil, err
 		}
 
-		threadId = thr.Id
+		threadId = thr
 	} else {
 		threadId = thread.Id
 	}
@@ -737,7 +746,7 @@ func (p *postgresAppRepository) SelectThreadByForum(forum string) (models.Thread
 }
 
 func (p* postgresAppRepository) SelectThreadIdBySlug(slug string) (int, error) {
-	query := `SELECT id FROM thread WHERE slug=$1`
+	query := `SELECT id FROM thread WHERE slug=$1 LIMIT 1`
 
 	var id int
 	err := p.Conn.QueryRow(query, slug).Scan(&id)

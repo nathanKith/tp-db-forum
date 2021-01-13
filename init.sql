@@ -1,15 +1,4 @@
 CREATE EXTENSION IF NOT EXISTS citext;
---
--- ALTER SYSTEM SET
---     checkpoint_completion_target = '0.9';
--- ALTER SYSTEM SET
---     wal_buffers = '6912kB';
--- ALTER SYSTEM SET
---     default_statistics_target = '100';
--- ALTER SYSTEM SET
---     random_page_cost = '1.1';
--- ALTER SYSTEM SET
---     effective_io_concurrency = '200';
 
 CREATE UNLOGGED TABLE users (
     nickname CITEXT PRIMARY KEY,
@@ -139,8 +128,6 @@ BEGIN
 end
 $update_path$ LANGUAGE plpgsql;
 
-CREATE INDEX path_ ON post (path);
-
 CREATE TRIGGER addThreadInForum
     BEFORE INSERT
     ON thread
@@ -186,7 +173,8 @@ CREATE INDEX post_first_parent_id_index ON post (id, (post.path[1]));
 CREATE INDEX post_first_parent_index ON post ((post.path[1]));
 CREATE INDEX post_path_index ON post ((post.path));
 CREATE INDEX post_thread_index ON post (thread);
-CREATE INDEX post_id_path_index ON post (id, path);
+CREATE INDEX post_id_path_index_desc ON post (id DESC, path);
+CREATE INDEX post_id_path_index ON post (id ASC, path);
 CREATE INDEX post_thread_id_index_desc ON post (id DESC, thread); -- +
 CREATE INDEX post_thread_id_index_asc ON post (id ASC, thread); -- +
 CREATE INDEX post_thread_id_path_index_asc ON post (path ASC, id ASC, thread); -- +
@@ -213,3 +201,4 @@ CREATE INDEX forum_fk_index ON  forum using hash ("user");
 CREATE INDEX thread_fk_index ON thread using hash (author);
 CREATE INDEX post_fk_forum_index ON post using hash (forum);
 CREATE INDEX post_fk_parent_index ON post (parent);
+CREATE INDEX post_fk_author_index ON post (author);
