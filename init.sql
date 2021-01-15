@@ -76,17 +76,31 @@ CREATE UNLOGGED TABLE votes
 
 CREATE UNLOGGED TABLE users_forum
 (
-    nickname citext NOT NULL,
+    nickname CITEXT NOT NULL,
+    fullname TEXT NOT NULL,
+    about    TEXT,
+    email    CITEXT,
     slug     citext NOT NULL,
     FOREIGN KEY (nickname) REFERENCES "users" (nickname),
     FOREIGN KEY (slug) REFERENCES "forum" (slug),
     UNIQUE (nickname, slug)
 );
 
+CREATE INDEX all_users_forum ON users_forum (nickname, fullname, about, email);
+CLUSTER users_forum USING all_users_forum;
+CREATE INDEX nickname_users_forum ON users_forum using hash (nickname);
+CREATE INDEX f_a_e_users_forum ON users_forum (fullname, about, email);
+
 CREATE OR REPLACE FUNCTION update_user_forum() RETURNS TRIGGER AS
 $update_users_forum$
+DECLARE
+    m_fullname CITEXT;
+    m_about    CITEXT;
+    m_email CITEXT;
 BEGIN
-    INSERT INTO users_forum (nickname, Slug) VALUES (NEW.author, NEW.forum) on conflict do nothing;
+    SELECT fullname, about, email FROM users WHERE nickname = NEW.author INTO m_fullname, m_about, m_email;
+    INSERT INTO users_forum (nickname, fullname, about, email, slug)
+    VALUES (NEW.author, m_fullname, m_about, m_email, NEW.forum) on conflict do nothing;
     return NEW;
 end
 $update_users_forum$ LANGUAGE plpgsql;
@@ -186,7 +200,7 @@ CREATE INDEX IF NOT EXISTS user_nickname ON users using hash (nickname);
 CREATE INDEX IF NOT EXISTS user_email ON users using hash (email);
 CREATE INDEX IF NOT EXISTS forum_slug ON forum using hash (slug);
 CREATE UNIQUE INDEX IF NOT EXISTS  forum_users_unique on users_forum (slug, nickname);
-CLUSTER users_forum USING forum_users_unique;
+-- CLUSTER users_forum USING forum_users_unique;
 CREATE INDEX IF NOT EXISTS  thr_slug ON thread using hash (slug);
 CREATE INDEX IF NOT EXISTS  thr_date ON thread (created);
 CREATE INDEX IF NOT EXISTS  thr_forum ON thread using hash (forum);
@@ -198,3 +212,5 @@ CREATE INDEX IF NOT EXISTS post_path1 on post ((path[1]));
 CREATE INDEX IF NOT EXISTS post_thread_id on post (thread, id);
 CREATE INDEX IF NOT EXISTS post_thr_id ON post (thread);
 CREATE UNIQUE INDEX IF NOT EXISTS  vote_unique on votes (nickname, id_thread);
+CREATE INDEX IF NOT EXISTS post_path1_path_id_desc ON post ((path[1]) DESC, path, id);
+CREATE INDEX IF NOT EXISTS post_path1_path_id_asc ON post ((path[1]) DESC, path, id);

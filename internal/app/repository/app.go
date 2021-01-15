@@ -348,21 +348,36 @@ func (p *postgresAppRepository) SelectUsersByForum(slugForum string, parameters 
 	var query string
 	if parameters.Desc {
 		if parameters.Since != "" {
-			query = fmt.Sprintf(`SELECT users.about, users.Email, users.FullName, users.Nickname FROM users
-    	inner join users_forum uf on users.Nickname = uf.nickname
-        WHERE uf.slug =$1 AND uf.nickname < '%s'
-        ORDER BY users.Nickname DESC LIMIT NULLIF($2, 0)`, parameters.Since)
+		//	query = fmt.Sprintf(`SELECT users.about, users.Email, users.FullName, users.Nickname FROM users
+    	//inner join users_forum uf on users.Nickname = uf.nickname
+        //WHERE uf.slug =$1 AND uf.nickname < '%s'
+        //ORDER BY users.Nickname DESC LIMIT NULLIF($2, 0)`, parameters.Since)
+			query = fmt.Sprintf(
+				`SELECT about, email, fullname, nickname 
+				FROM users_forum WHERE slug=$1 AND nickname < '%s' 
+				ORDER BY nickname DESC LIMIT NULLIF($2, 0)`,
+				parameters.Since,
+			)
 		} else {
-			query = `SELECT users.about, users.Email, users.FullName, users.Nickname FROM users
-    	inner join users_forum uf on users.Nickname = uf.nickname
-        WHERE uf.slug =$1
-        ORDER BY users.Nickname DESC LIMIT NULLIF($2, 0)`
+		//	query = `SELECT users.about, users.Email, users.FullName, users.Nickname FROM users
+    	//inner join users_forum uf on users.Nickname = uf.nickname
+        //WHERE uf.slug =$1
+        //ORDER BY users.Nickname DESC LIMIT NULLIF($2, 0)`
+			query = `SELECT about, email, fullname, nickname 
+				FROM users_forum WHERE slug=$1 
+				ORDER BY nickname DESC LIMIT NULLIF($2, 0)`
 		}
 	} else {
-		query = fmt.Sprintf(`SELECT users.about, users.Email, users.FullName, users.Nickname FROM users
-    	inner join users_forum uf on users.Nickname = uf.nickname
-        WHERE uf.slug =$1 AND uf.nickname > '%s'
-        ORDER BY users.Nickname LIMIT NULLIF($2, 0)`, parameters.Since)
+		//query = fmt.Sprintf(`SELECT users.about, users.Email, users.FullName, users.Nickname FROM users
+    	//inner join users_forum uf on users.Nickname = uf.nickname
+        //WHERE uf.slug =$1 AND uf.nickname > '%s'
+        //ORDER BY users.Nickname LIMIT NULLIF($2, 0)`, parameters.Since)
+		query = fmt.Sprintf(
+			`SELECT about, email, fullname, nickname
+			FROM users_forum WHERE slug=$1 AND nickname > '%s'
+			ORDER BY nickname LIMIT NULLIF($2, 0)`,
+			parameters.Since,
+		)
 	}
 	var data []models.User
 	row, err := p.Conn.Query(query, slugForum, parameters.Limit)
